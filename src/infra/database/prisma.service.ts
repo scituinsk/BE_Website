@@ -1,37 +1,70 @@
 import { PrismaClient } from '@prisma/client';
-import { Injectable, OnModuleInit, INestApplication } from '@nestjs/common';
+import { Injectable, OnModuleInit, Inject } from '@nestjs/common';
+import type { LoggerService } from '@nestjs/common';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import { PrismaLogger } from '../logging/prisma.logger';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
-  constructor() {
+  private prismaLogger: PrismaLogger;
+
+  constructor(
+    @Inject(WINSTON_MODULE_NEST_PROVIDER)
+    private readonly logger: LoggerService,
+  ) {
     super({
       log: [
         {
-          emit: 'stdout',
+          emit: 'event',
           level: 'query',
         },
         {
-          emit: 'stdout',
+          emit: 'event',
           level: 'info',
         },
         {
-          emit: 'stdout',
+          emit: 'event',
           level: 'warn',
         },
         {
-          emit: 'stdout',
+          emit: 'event',
           level: 'error',
         },
       ],
     });
+
+    this.prismaLogger = new PrismaLogger(logger);
+
+    // Subscribe to Prisma events
+    this.$on('query' as never, (e: any) => {
+      this.prismaLogger.log(
+        'query',
+        `Query: ${e.query} - Duration: ${e.duration}ms`,
+      );
+    });
+
+    this.$on('info' as never, (e: any) => {
+      this.prismaLogger.log('info', e.message);
+    });
+
+    this.$on('warn' as never, (e: any) => {
+      this.prismaLogger.log('warn', e.message);
+    });
+
+    this.$on('error' as never, (e: any) => {
+      this.prismaLogger.log('error', e.message);
+    });
   }
 
   async onModuleInit() {
-    console.log('init prisma..');
+    this.logger.log('Initializing Prisma connection...', 'PrismaService');
     await this.$connect();
+    this.logger.log('Prisma connection established', 'PrismaService');
   }
 
   async onModuleDestroy() {
+    this.logger.log('Closing Prisma connection...', 'PrismaService');
     await this.$disconnect();
+    this.logger.log('Prisma connection closed', 'PrismaService');
   }
 }

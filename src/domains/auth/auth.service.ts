@@ -10,6 +10,10 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { SignUpDto } from './dto/signup.dto';
 import { ResponseUtil } from '../../common/utils/response.util';
+import {
+  JWT_ACCESS_TOKEN_EXPIRATION,
+  JWT_REFRESH_TOKEN_EXPIRATION,
+} from '../../common/constants/auth.constants';
 
 @Injectable()
 export class AuthService {
@@ -91,7 +95,7 @@ export class AuthService {
         },
         {
           secret: this.configService.get<string>('JWT_SECRET'),
-          expiresIn: '15m',
+          expiresIn: JWT_ACCESS_TOKEN_EXPIRATION,
         },
       ),
       this.jwtService.signAsync(
@@ -101,7 +105,7 @@ export class AuthService {
         },
         {
           secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-          expiresIn: '7d',
+          expiresIn: JWT_REFRESH_TOKEN_EXPIRATION,
         },
       ),
     ]);
