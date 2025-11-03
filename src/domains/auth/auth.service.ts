@@ -53,10 +53,21 @@ export class AuthService {
   }
 
   async signIn(user: any) {
-    const tokens = await this.getTokens(user.id, user.username, user.email);
+    const tokens = await this.getTokens(user.id, user.username, user.role);
     await this.usersService.updateRefreshToken(user.id, tokens.refreshToken);
 
-    return ResponseUtil.success(tokens, 'Login successful');
+    return ResponseUtil.success(
+      {
+        user: {
+          id: user.id,
+          username: user.username,
+          name: user.name,
+          role: user.role,
+        },
+        ...tokens,
+      },
+      'Login successful',
+    );
   }
 
   async refreshTokens(userId: number, refreshToken: string) {
@@ -74,7 +85,7 @@ export class AuthService {
       throw new UnauthorizedException('Access Denied');
     }
 
-    const tokens = await this.getTokens(user.id, user.username, user.email);
+    const tokens = await this.getTokens(user.id, user.username, user.role);
     await this.usersService.updateRefreshToken(user.id, tokens.refreshToken);
 
     return ResponseUtil.success(tokens, 'Tokens refreshed successfully');
@@ -85,13 +96,13 @@ export class AuthService {
     return ResponseUtil.success(null, 'Logged out successfully');
   }
 
-  private async getTokens(userId: number, username: string, email: string) {
+  private async getTokens(userId: number, username: string, role: string) {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
         {
           sub: userId,
           username,
-          email,
+          role,
         },
         {
           secret: this.configService.get<string>('JWT_SECRET'),
