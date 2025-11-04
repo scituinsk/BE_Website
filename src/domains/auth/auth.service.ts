@@ -2,9 +2,9 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
-  BadRequestException,
 } from '@nestjs/common';
 import { UserService } from '../user/user.service';
+import { SessionService } from './session.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -19,6 +19,7 @@ import {
 export class AuthService {
   constructor(
     private usersService: UserService,
+    private sessionService: SessionService,
     private jwtService: JwtService,
     private configService: ConfigService,
   ) {}
@@ -34,7 +35,7 @@ export class AuthService {
       return null;
     }
 
-    const { password: _, refreshToken: __, ...result } = user;
+    const { password: _, ...result } = user;
     return result;
   }
 
@@ -45,16 +46,29 @@ export class AuthService {
       throw new ConflictException('Username already exists');
     }
 
-    // Create new user
+    // Create new user with Gravatar
     const user = await this.usersService.create(signUpDto);
-    const { password: _, refreshToken: __, ...result } = user;
+    const { password: _, ...result } = user;
 
     return ResponseUtil.created(result, 'User created successfully');
   }
 
-  async signIn(user: any) {
+  async signIn(user: any, deviceInfo?: string, ipAddress?: string) {
     const tokens = await this.getTokens(user.id, user.username, user.role);
-    await this.usersService.updateRefreshToken(user.id, tokens.refreshToken);
+
+    // Calculate refresh token expiration
+    const expiresAt = this.calculateTokenExpiration(
+      JWT_REFRESH_TOKEN_EXPIRATION,
+    );
+
+    // Create new session
+    await this.sessionService.createSession(
+      user.id,
+      tokens.refreshToken,
+      expiresAt,
+      deviceInfo,
+      ipAddress,
+    );
 
     return ResponseUtil.success(
       {
@@ -63,6 +77,7 @@ export class AuthService {
           username: user.username,
           name: user.name,
           role: user.role,
+          image: user.image,
         },
         ...tokens,
       },
@@ -71,29 +86,50 @@ export class AuthService {
   }
 
   async refreshTokens(userId: number, refreshToken: string) {
-    const user = await this.usersService.findById(userId);
-    if (!user || !user.refreshToken) {
+    const session = await this.sessionService.findSessionByToken(refreshToken);
+
+    if (!session || session.userId !== userId) {
       throw new UnauthorizedException('Access Denied');
     }
 
-    const refreshTokenMatches = await bcrypt.compare(
-      refreshToken,
-      user.refreshToken,
-    );
-
-    if (!refreshTokenMatches) {
-      throw new UnauthorizedException('Access Denied');
+    // Check if session is expired
+    if (new Date() > session.expiresAt) {
+      await this.sessionService.deleteSession(session.id);
+      throw new UnauthorizedException('Session expired');
     }
 
+    const user = session.user;
     const tokens = await this.getTokens(user.id, user.username, user.role);
-    await this.usersService.updateRefreshToken(user.id, tokens.refreshToken);
+
+    // Update session with new refresh token
+    const expiresAt = this.calculateTokenExpiration(
+      JWT_REFRESH_TOKEN_EXPIRATION,
+    );
+    await this.sessionService.updateSession(
+      session.id,
+      tokens.refreshToken,
+      expiresAt,
+    );
 
     return ResponseUtil.success(tokens, 'Tokens refreshed successfully');
   }
 
-  async logout(userId: number) {
-    await this.usersService.updateRefreshToken(userId, null);
+  async logout(userId: number, refreshToken: string) {
+    const session = await this.sessionService.findSessionByToken(refreshToken);
+
+    if (session && session.userId === userId) {
+      await this.sessionService.deleteSession(session.id);
+    }
+
     return ResponseUtil.success(null, 'Logged out successfully');
+  }
+
+  async logoutAll(userId: number) {
+    await this.sessionService.deleteUserSessions(userId);
+    return ResponseUtil.success(
+      null,
+      'Logged out from all devices successfully',
+    );
   }
 
   private async getTokens(userId: number, username: string, role: string) {
@@ -125,5 +161,23 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
+  }
+
+  private calculateTokenExpiration(expiration: string): Date {
+    // Parse expiration string like "7d", "24h", "60m"
+    const value = parseInt(expiration.slice(0, -1));
+    const unit = expiration.slice(-1);
+
+    const now = new Date();
+    switch (unit) {
+      case 'd':
+        return new Date(now.getTime() + value * 24 * 60 * 60 * 1000);
+      case 'h':
+        return new Date(now.getTime() + value * 60 * 60 * 1000);
+      case 'm':
+        return new Date(now.getTime() + value * 60 * 1000);
+      default:
+        return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // Default 7 days
+    }
   }
 }

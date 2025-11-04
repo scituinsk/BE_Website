@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { WinstonModule } from 'nest-winston';
 
 import { AppController } from './app.controller';
@@ -11,8 +11,9 @@ import { GalleryModule } from './domains/gallery/gallery.module';
 import { AuthModule } from './domains/auth/auth.module';
 import { UserService } from './domains/user/user.service';
 import { UserModule } from './domains/user/user.module';
-import { JwtModule } from '@nestjs/jwt';
 import { createWinstonConfig } from './infra/logging/winston.config';
+import { CommonModule } from './domains/common/common.module';
+import { S3Module } from './infra/s3/s3.module';
 
 @Module({
   imports: [
@@ -26,6 +27,8 @@ import { createWinstonConfig } from './infra/logging/winston.config';
     GalleryModule,
     AuthModule,
     UserModule,
+    CommonModule,
+    S3Module,
   ],
   controllers: [AppController],
   providers: [AppService, UserService],

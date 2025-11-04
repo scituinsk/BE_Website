@@ -5,10 +5,11 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
@@ -24,6 +25,7 @@ import {
   COOKIE_ACCESS_TOKEN_NAME,
   COOKIE_REFRESH_TOKEN_NAME,
 } from '../../common/constants/auth.constants';
+import { ResponseUtil } from 'src/common/utils/response.util';
 
 @Controller('auth')
 export class AuthController {
@@ -40,9 +42,14 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async signIn(
     @CurrentUser() user: any,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.signIn(user);
+    // Extract device info and IP
+    const deviceInfo = req.headers['user-agent'] || 'Unknown device';
+    const ipAddress = (req.ip || req.socket.remoteAddress) as string;
+
+    const result = await this.authService.signIn(user, deviceInfo, ipAddress);
 
     // Set tokens in cookies
     res.cookie(COOKIE_ACCESS_TOKEN_NAME, result.data.accessToken, {
@@ -92,7 +99,7 @@ export class AuthController {
     return result;
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtRefreshAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   async logout(
@@ -103,13 +110,27 @@ export class AuthController {
     res.clearCookie(COOKIE_ACCESS_TOKEN_NAME);
     res.clearCookie(COOKIE_REFRESH_TOKEN_NAME);
 
-    return this.authService.logout(user.userId);
+    return this.authService.logout(user.userId, user.refreshToken);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout-all')
+  @HttpCode(HttpStatus.OK)
+  async logoutAll(
+    @CurrentUser() user: any,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // Clear cookies
+    res.clearCookie(COOKIE_ACCESS_TOKEN_NAME);
+    res.clearCookie(COOKIE_REFRESH_TOKEN_NAME);
+
+    return this.authService.logoutAll(user.userId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('session')
   getSession(@CurrentUser() user: any) {
-    return user;
+    return ResponseUtil.success(user);
   }
 
   // Example: Admin-only endpoint

@@ -20,12 +20,72 @@ enum Role {
 }
 
 model User {
-  id            Int      @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
   name          String
-  username      String   @unique
+  username      String    @unique
   password      String
-  refreshToken  String?
-  role        Role     @default(USER)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  image         String?   // Gravatar URL based on user ID hash
+  role          Role      @default(USER)
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String   @unique
+  deviceInfo   String?  // Optional: store device/browser info
+  ipAddress    String?  // Optional: store IP address
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([refreshToken])
+}
+
+model Member {
+  id           Int             @id @default(autoincrement())
+  name         String
+  batch        String?         // Informatics '23
+  divisions    DivisionMember[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+}
+
+model Division {
+  id          Int              @id @default(autoincrement())
+  name        String
+  slug        String           @unique 
+  members     DivisionMember[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Position {
+  id                 Int               @id @default(autoincrement())
+  title              String            // Lead, Co-Lead, Secretary, etc
+  divisionMembers    DivisionMember[]
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+}
+
+model DivisionMember {
+  id          Int       @id @default(autoincrement())
+
+  division    Division?  @relation(fields: [divisionId], references: [id])
+  divisionId  Int?
+
+  member      Member    @relation(fields: [memberId], references: [id])
+  memberId    Int
+
+  position    Position? @relation(fields: [positionId], references: [id])
+  positionId  Int?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([memberId])
 }
