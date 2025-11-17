@@ -100,7 +100,7 @@ export class AuthController {
   }
 
   @UseGuards(JwtRefreshAuthGuard)
-  @Post('logout')
+  @Post('signout')
   @HttpCode(HttpStatus.OK)
   async logout(
     @CurrentUser() user: any,

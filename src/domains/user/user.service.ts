@@ -24,6 +24,9 @@ export class UserService {
   async findById(id: number) {
     return this.prisma.user.findUnique({
       where: { id },
+      include: {
+        avatarImage: true,
+      },
     });
   }
 
@@ -34,51 +37,71 @@ export class UserService {
   }) {
     const hashedPassword = await bcrypt.hash(data.password, BCRYPT_SALT_ROUNDS);
 
-    // Create user first to get the ID
-    const user = await this.prisma.user.create({
-      data: {
-        username: data.username,
-        password: hashedPassword,
-        name: data.name,
-      },
-    });
+    // Generate avatar key
+    const avatarKey = `avatars/user-${Date.now()}-${crypto.randomBytes(8).toString('hex')}.png`;
 
-    // Generate avatar and upload to S3
-    try {
-      const avatarUrl = await this.generateAndUploadAvatar(user.id);
-
-      // Update user with S3 avatar URL
-      return this.prisma.user.update({
-        where: { id: user.id },
-        data: { image: avatarUrl },
-      });
-    } catch (error) {
-      this.logger.error(
-        `Failed to upload avatar for user ${user.id}: ${error.message}`,
-      );
-      // Return user without avatar if upload fails
-      return user;
-    }
-  }
-
-  /**
-   * Generate Gravatar URL and upload to S3
-   * Returns S3 URL
-   */
-  async generateAndUploadAvatar(userId: number): Promise<string> {
     // Generate Gravatar URL
-    const gravatarUrl = this.generateGravatarUrl(userId);
+    const gravatarUrl = this.generateGravatarUrl(Date.now()); // Use timestamp as temp ID
 
-    // Download from Gravatar and upload to S3
-    const fileName = `user-${userId}-${Date.now()}.png`;
-    const s3Url = await this.s3Service.uploadFromUrl(
-      gravatarUrl,
-      fileName,
-      'avatars',
-    );
+    let s3Url: string;
 
-    this.logger.log(`Avatar uploaded to S3 for user ${userId}: ${s3Url}`);
-    return s3Url;
+    // Upload to S3 first, before creating user in database
+    try {
+      const fileName = avatarKey.split('/').pop() || 'avatar.png';
+      s3Url = await this.s3Service.uploadFromUrl(
+        gravatarUrl,
+        fileName,
+        'avatars',
+      );
+      this.logger.log(`Avatar uploaded to S3: ${s3Url}`);
+    } catch (error) {
+      this.logger.error(`Failed to upload avatar to S3: ${error.message}`);
+      throw new Error('Failed to upload avatar. User creation cancelled.');
+    }
+
+    // If S3 upload successful, create user with transaction
+    try {
+      const user = await this.prisma.$transaction(async (tx) => {
+        // Create user with avatar image record
+        const newUser = await tx.user.create({
+          data: {
+            username: data.username,
+            password: hashedPassword,
+            name: data.name,
+            avatarImage: {
+              create: {
+                key: avatarKey,
+                imageUrl: s3Url,
+              },
+            },
+          },
+          include: {
+            avatarImage: true,
+          },
+        });
+
+        return newUser;
+      });
+
+      this.logger.log(`User created successfully with ID: ${user.id}`);
+      return user;
+    } catch (error) {
+      // If database transaction fails, delete uploaded file from S3
+      this.logger.error(
+        `Failed to create user in database: ${error.message}. Rolling back S3 upload...`,
+      );
+
+      try {
+        await this.s3Service.deleteFileByKey(avatarKey);
+        this.logger.log(`Rolled back S3 upload for key: ${avatarKey}`);
+      } catch (deleteError) {
+        this.logger.error(
+          `Failed to rollback S3 upload: ${deleteError.message}`,
+        );
+      }
+
+      throw error;
+    }
   }
 
   /**
@@ -105,36 +128,83 @@ export class UserService {
       throw new Error('User not found');
     }
 
-    // Delete old avatar from S3 if exists
-    if (user.image) {
-      try {
-        await this.s3Service.deleteFile(user.image);
-      } catch (error) {
-        this.logger.warn(`Failed to delete old avatar: ${error.message}`);
+    const oldAvatarKey = user.avatarImageId;
+
+    // Generate new avatar key
+    const newAvatarKey = `avatars/user-${userId}-${Date.now()}-${crypto.randomBytes(8).toString('hex')}.png`;
+
+    let s3Url: string;
+
+    // Upload to S3 first
+    try {
+      if (file) {
+        // Upload custom image
+        s3Url = await this.s3Service.uploadFile(file, 'avatars');
+      } else {
+        // Regenerate from Gravatar
+        const gravatarUrl = this.generateGravatarUrl(userId);
+        const fileName = newAvatarKey.split('/').pop() || `user-${userId}.png`;
+        s3Url = await this.s3Service.uploadFromUrl(
+          gravatarUrl,
+          fileName,
+          'avatars',
+        );
       }
+      this.logger.log(`New avatar uploaded to S3: ${s3Url}`);
+    } catch (error) {
+      this.logger.error(`Failed to upload new avatar: ${error.message}`);
+      throw new Error('Failed to upload avatar');
     }
 
-    let newAvatarUrl: string;
+    // If S3 upload successful, update database with transaction
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // Mark old avatar as deleted if exists
+        if (oldAvatarKey) {
+          await tx.avatarImage.update({
+            where: { key: oldAvatarKey },
+            data: { deletedAt: new Date() },
+          });
+        }
 
-    if (file) {
-      // Upload custom image
-      newAvatarUrl = await this.s3Service.uploadFile(file, 'avatars');
-    } else {
-      // Regenerate from Gravatar
-      newAvatarUrl = await this.generateAndUploadAvatar(userId);
+        // Create new avatar image record
+        await tx.avatarImage.create({
+          data: {
+            key: newAvatarKey,
+            imageUrl: s3Url,
+          },
+        });
+
+        // Update user with new avatar
+        await tx.user.update({
+          where: { id: userId },
+          data: { avatarImageId: newAvatarKey },
+        });
+      });
+
+      this.logger.log(`Avatar updated successfully for user ${userId}`);
+      return s3Url;
+    } catch (error) {
+      // If database transaction fails, delete uploaded file from S3
+      this.logger.error(
+        `Failed to update avatar in database: ${error.message}. Rolling back S3 upload...`,
+      );
+
+      try {
+        await this.s3Service.deleteFileByKey(newAvatarKey);
+        this.logger.log(`Rolled back S3 upload for key: ${newAvatarKey}`);
+      } catch (deleteError) {
+        this.logger.error(
+          `Failed to rollback S3 upload: ${deleteError.message}`,
+        );
+      }
+
+      throw error;
     }
-
-    // Update user
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { image: newAvatarUrl },
-    });
-
-    return newAvatarUrl;
   }
 
   /**
-   * Delete user avatar
+   * Delete user avatar (soft delete)
    */
   async deleteAvatar(userId: number): Promise<void> {
     const user = await this.findById(userId);
@@ -143,12 +213,91 @@ export class UserService {
       throw new Error('User not found');
     }
 
-    if (user.image) {
-      await this.s3Service.deleteFile(user.image);
+    if (user.avatarImageId) {
+      // Soft delete avatar
+      await this.prisma.avatarImage.update({
+        where: { key: user.avatarImageId },
+        data: { deletedAt: new Date() },
+      });
+
+      // Remove reference from user
       await this.prisma.user.update({
         where: { id: userId },
-        data: { image: null },
+        data: { avatarImageId: null },
       });
     }
+  }
+
+  /**
+   * Cleanup deleted avatars (called by cronjob)
+   * Deletes from S3 and database
+   */
+  async cleanupDeletedAvatars(): Promise<{
+    total: number;
+    deleted: number;
+    failed: number;
+  }> {
+    const deletedAvatars = await this.prisma.avatarImage.findMany({
+      where: {
+        users: null,
+        deletedAt: {
+          not: null,
+        },
+      },
+    });
+
+    this.logger.log(
+      `Found ${deletedAvatars.length} deleted avatars to clean up`,
+    );
+
+    let deletedCount = 0;
+    let failedCount = 0;
+
+    for (const avatar of deletedAvatars) {
+      try {
+        // Delete from S3
+        await this.s3Service.deleteFileByKey(avatar.key);
+
+        // Delete from database
+        await this.prisma.avatarImage.delete({
+          where: { id: avatar.id },
+        });
+
+        deletedCount++;
+        this.logger.log(`Deleted avatar: ${avatar.key}`);
+      } catch (error) {
+        failedCount++;
+        this.logger.error(
+          `Failed to delete avatar ${avatar.key}: ${error.message}`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `Cleanup completed: ${deletedCount} deleted, ${failedCount} failed`,
+    );
+
+    return {
+      total: deletedAvatars.length,
+      deleted: deletedCount,
+      failed: failedCount,
+    };
+  }
+
+  /**
+   * Get avatar URL by user ID
+   */
+  async getAvatarUrl(userId: number): Promise<string | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { avatarImage: true },
+    });
+
+    if (!user || !user.avatarImage || user.avatarImage.deletedAt) {
+      return null;
+    }
+
+    // Return URL directly from database
+    return user.avatarImage.imageUrl || null;
   }
 }

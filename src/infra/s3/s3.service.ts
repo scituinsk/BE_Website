@@ -5,6 +5,7 @@ import {
   GetObjectCommand,
   ObjectCannedACL,
 } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
@@ -57,7 +58,7 @@ export class S3Service {
         Key: key,
         Body: file.buffer,
         ContentType: file.mimetype,
-        ACL: acl, // 👈 apply ACL
+        ACL: acl,
       }),
     );
 
@@ -86,7 +87,7 @@ export class S3Service {
         Key: key,
         Body: buffer,
         ContentType: contentType,
-        ACL: acl, // 👈 apply ACL
+        ACL: acl,
       }),
     );
 
@@ -111,7 +112,7 @@ export class S3Service {
         Key: key,
         Body: buffer,
         ContentType: contentType,
-        ACL: acl, // 👈 apply ACL
+        ACL: acl,
       }),
     );
 
@@ -122,26 +123,11 @@ export class S3Service {
     const key = this.getKeyFromUrl(fileUrl);
     if (!key) throw new Error('Invalid file URL');
 
-    await this.s3.send(
-      new DeleteObjectCommand({
-        Bucket: this.bucketName,
-        Key: key,
-      }),
-    );
+    await this.deleteFileByKey(key);
   }
 
-  private getPublicUrl(key: string): string {
+  getPublicUrl(key: string): string {
     return `${this.endpoint}/${this.bucketName}/${key}`;
-  }
-
-  private getKeyFromUrl(url: string): string | null {
-    try {
-      const urlObj = new URL(url);
-      const parts = urlObj.pathname.split('/');
-      return parts.slice(2).join('/');
-    } catch {
-      return null;
-    }
   }
 
   async fileExists(key: string): Promise<boolean> {
@@ -155,6 +141,76 @@ export class S3Service {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Generate presigned URL for upload (PUT)
+   * Frontend will use this URL to upload file directly to S3
+   */
+  async generatePresignedUploadUrl(
+    fileName: string,
+    contentType: string,
+    folder = 'uploads',
+    expiresIn = 3600, // 1 hour default
+  ): Promise<{ uploadUrl: string; fileUrl: string; key: string }> {
+    const key = `${folder}/${Date.now()}-${fileName}`;
+
+    const command = new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      ContentType: contentType,
+      ACL: 'public-read',
+    });
+
+    const uploadUrl = await getSignedUrl(this.s3, command, { expiresIn });
+    const fileUrl = this.getPublicUrl(key);
+
+    return {
+      uploadUrl,
+      fileUrl,
+      key,
+    };
+  }
+
+  /**
+   * Generate presigned URL for download (GET)
+   * Use this for private files that need temporary access
+   */
+  async generatePresignedDownloadUrl(
+    key: string,
+    expiresIn = 3600,
+  ): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+    });
+
+    return getSignedUrl(this.s3, command, { expiresIn });
+  }
+
+  /**
+   * Delete file by key (extracted from URL or direct key)
+   */
+  async deleteFileByKey(key: string): Promise<void> {
+    await this.s3.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+      }),
+    );
+  }
+
+  /**
+   * Get key from full URL
+   */
+  getKeyFromUrl(url: string): string | null {
+    try {
+      const urlObj = new URL(url);
+      const parts = urlObj.pathname.split('/');
+      return parts.slice(2).join('/');
+    } catch {
+      return null;
     }
   }
 }

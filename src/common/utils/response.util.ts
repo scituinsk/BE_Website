@@ -7,6 +7,28 @@ export class ResponseUtil {
     };
   }
 
+  static successWithPagination<T>(
+    data: T,
+    pagination: {
+      page: number;
+      perPage: number;
+      totalItems: number;
+      totalPages: number;
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+      nextPage?: number | null;
+      prevPage?: number | null;
+    },
+    message?: string,
+  ) {
+    return {
+      statusCode: 200,
+      message: message || 'Success',
+      data,
+      pagination,
+    };
+  }
+
   static created<T>(data: T, message?: string) {
     return {
       statusCode: 201,

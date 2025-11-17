@@ -35,7 +35,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
     this.prismaLogger = new PrismaLogger(logger);
 
-    // Subscribe to Prisma events
     this.$on('query' as never, (e: any) => {
       this.prismaLogger.log(
         'query',

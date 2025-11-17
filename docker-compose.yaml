@@ -1,0 +1,10 @@
+services:
+  backend_api:
+    build: .
+    container_name: scit-web-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      # Mapping port 1001 di dalam container ke port 3001 di host
+      - "3001:1001"

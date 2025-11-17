@@ -1,19 +1,28 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import { NestExpressApplication } from '@nestjs/platform-express';
+
+import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
   });
 
-  // Use Winston as the global logger
+  app.use(helmet());
+
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 
-  // Enable cookie parser
-  app.use(cookieParser());
+  app.use(cookieParser(process.env.COOKIE_SECRET ?? 'SUPER_SECRET'));
+
+  app.enableShutdownHooks();
+
+  app.set('trust proxy', true);
+
+  app.getHttpAdapter().getInstance().disable('etag');
 
   app.enableCors({
     origin: ['http://localhost:3000'],

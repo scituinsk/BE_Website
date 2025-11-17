@@ -1,11 +1,14 @@
+import * as crypto from 'crypto';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infra/database/prisma.service';
-import * as bcrypt from 'bcrypt';
-import { BCRYPT_SALT_ROUNDS } from '../../common/constants/auth.constants';
 
 @Injectable()
 export class SessionService {
   constructor(private prisma: PrismaService) {}
+
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
 
   async createSession(
     userId: number,
@@ -14,15 +17,12 @@ export class SessionService {
     deviceInfo?: string,
     ipAddress?: string,
   ) {
-    const hashedRefreshToken = await bcrypt.hash(
-      refreshToken,
-      BCRYPT_SALT_ROUNDS,
-    );
+    const hashedRefreshToken = this.hashToken(refreshToken);
 
     return this.prisma.session.create({
       data: {
         userId,
-        refreshToken: hashedRefreshToken,
+        refreshToken: hashedRefreshToken, // Simpan hash-nya
         expiresAt,
         deviceInfo,
         ipAddress,
@@ -30,27 +30,25 @@ export class SessionService {
     });
   }
 
-  async findSessionByToken(refreshToken: string) {
-    // Find all sessions and check token manually due to hashing
-    const sessions = await this.prisma.session.findMany({
+  /**
+   * Menemukan sesi berdasarkan userId dan plain text refresh token.
+   * NOTE: Anda HARUS mendapatkan userId (misalnya dari payload JWT yang kedaluwarsa)
+   * untuk query yang efisien.
+   */
+  async findSessionByToken(userId: number, refreshToken: string) {
+    const hashedRefreshToken = this.hashToken(refreshToken);
+    return this.prisma.session.findFirst({
       where: {
+        userId: userId,
+        refreshToken: hashedRefreshToken,
         expiresAt: {
-          gt: new Date(), // Only get non-expired sessions
+          gt: new Date(),
         },
       },
       include: {
         user: true,
       },
     });
-
-    for (const session of sessions) {
-      const isMatch = await bcrypt.compare(refreshToken, session.refreshToken);
-      if (isMatch) {
-        return session;
-      }
-    }
-
-    return null;
   }
 
   async findUserSessions(userId: number) {
@@ -65,10 +63,7 @@ export class SessionService {
     refreshToken: string,
     expiresAt: Date,
   ) {
-    const hashedRefreshToken = await bcrypt.hash(
-      refreshToken,
-      BCRYPT_SALT_ROUNDS,
-    );
+    const hashedRefreshToken = this.hashToken(refreshToken);
 
     return this.prisma.session.update({
       where: { id: sessionId },

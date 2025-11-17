@@ -1,14 +1,15 @@
+import * as bcrypt from 'bcrypt';
 import {
   Injectable,
   UnauthorizedException,
   ConflictException,
 } from '@nestjs/common';
-import { UserService } from '../user/user.service';
-import { SessionService } from './session.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcrypt';
+
 import { SignUpDto } from './dto/signup.dto';
+import { UserService } from '../user/user.service';
+import { SessionService } from './session.service';
 import { ResponseUtil } from '../../common/utils/response.util';
 import {
   JWT_ACCESS_TOKEN_EXPIRATION,
@@ -72,13 +73,6 @@ export class AuthService {
 
     return ResponseUtil.success(
       {
-        user: {
-          id: user.id,
-          username: user.username,
-          name: user.name,
-          role: user.role,
-          image: user.image,
-        },
         ...tokens,
       },
       'Login successful',
@@ -86,7 +80,10 @@ export class AuthService {
   }
 
   async refreshTokens(userId: number, refreshToken: string) {
-    const session = await this.sessionService.findSessionByToken(refreshToken);
+    const session = await this.sessionService.findSessionByToken(
+      userId,
+      refreshToken,
+    );
 
     if (!session || session.userId !== userId) {
       throw new UnauthorizedException('Access Denied');
@@ -115,7 +112,10 @@ export class AuthService {
   }
 
   async logout(userId: number, refreshToken: string) {
-    const session = await this.sessionService.findSessionByToken(refreshToken);
+    const session = await this.sessionService.findSessionByToken(
+      userId,
+      refreshToken,
+    );
 
     if (session && session.userId === userId) {
       await this.sessionService.deleteSession(session.id);

@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-
 }
 
 datasource db {
@@ -24,11 +23,25 @@ model User {
   name          String
   username      String    @unique
   password      String
-  image         String?   // Gravatar URL based on user ID hash
+  avatarImageId String?   @unique
   role          Role      @default(USER)
   sessions      Session[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  avatarImage AvatarImage? @relation(fields: [avatarImageId], references: [key], onDelete: SetNull)
+
+  @@index([username])
+}
+
+model AvatarImage {
+  id        Int       @id @default(autoincrement())
+  key       String    @unique
+  imageUrl  String?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  users User?
 }
 
 model Session {
@@ -36,8 +49,8 @@ model Session {
   userId       Int
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   refreshToken String   @unique
-  deviceInfo   String?  // Optional: store device/browser info
-  ipAddress    String?  // Optional: store IP address
+  deviceInfo   String?
+  ipAddress    String?
   expiresAt    DateTime
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -46,46 +59,138 @@ model Session {
   @@index([refreshToken])
 }
 
-model Member {
-  id           Int             @id @default(autoincrement())
-  name         String
-  batch        String?         // Informatics '23
-  divisions    DivisionMember[]
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+enum ProjectStatus {
+  PRODUCTION
+  BETA_LAUNCH
+}
+
+
+model Project {
+  id          Int                @id @default(autoincrement())
+  title       String
+  description String
+  about       String?            @db.Text
+  slug        String             @unique
+  duration    Int?
+  launchDate  DateTime?
+  demoUrl     String?
+  status      ProjectStatus      @default(BETA_LAUNCH)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  technologies ProjectTechnology[]
+  keyFeatures  KeyFeatureProject[]
+  challenges   ChallengeProject[]
+  results      ResultsProject[]
+  images       ProjectImage[]
+  testimonials ProjectTestimonial[]
+
+  @@index([title])
+}
+
+model KeyFeatureProject {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  feature   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+model ChallengeProject {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  challenge String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+model ResultsProject {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  result    String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+model ProjectImage {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  imageUrl  String
+  isPrimary Boolean  @default(false)
+  isUsed    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+model Technology {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects ProjectTechnology[]
+
+  @@index([name])
+}
+
+model ProjectTechnology {
+  projectId    Int
+  technologyId Int
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  technology   Technology @relation(fields: [technologyId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, technologyId])
+  @@index([technologyId])
+}
+
+model ProjectTestimonial {
+  id          Int      @id @default(autoincrement())
+  projectId   Int
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  avatarUrl   String?
+  rating      Int
+  testimonial String   @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([projectId])
 }
 
 model Division {
-  id          Int              @id @default(autoincrement())
-  name        String
-  slug        String           @unique 
-  members     DivisionMember[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String
+  slug        String   @unique
+  members     Member[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
 }
 
-model Position {
-  id                 Int               @id @default(autoincrement())
-  title              String            // Lead, Co-Lead, Secretary, etc
-  divisionMembers    DivisionMember[]
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-}
+model Member {
+  id         Int      @id @default(autoincrement())
+  name       String
+  divisionId Int
+  division   Division @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  imageUrl   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-model DivisionMember {
-  id          Int       @id @default(autoincrement())
-
-  division    Division?  @relation(fields: [divisionId], references: [id])
-  divisionId  Int?
-
-  member      Member    @relation(fields: [memberId], references: [id])
-  memberId    Int
-
-  position    Position? @relation(fields: [positionId], references: [id])
-  positionId  Int?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@unique([memberId])
+  @@index([name])
+  @@index([divisionId])
 }

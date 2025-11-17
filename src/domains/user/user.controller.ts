@@ -28,8 +28,10 @@ export class UserController {
       throw new NotFoundException('User not found');
     }
 
+    const avatarUrl = await this.userService.getAvatarUrl(user.userId);
+
     const { password, ...result } = userData;
-    return ResponseUtil.success(result);
+    return ResponseUtil.success({ ...result, avatarUrl });
   }
 
   @UseGuards(JwtAuthGuard)
@@ -40,8 +42,20 @@ export class UserController {
       throw new NotFoundException('User not found');
     }
 
+    const avatarUrl = await this.userService.getAvatarUrl(id);
+
     const { password, ...result } = user;
-    return ResponseUtil.success(result);
+    return ResponseUtil.success({ ...result, avatarUrl });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/avatar')
+  async getMyAvatar(@CurrentUser() user: any) {
+    const avatarUrl = await this.userService.getAvatarUrl(user.userId);
+    if (!avatarUrl) {
+      throw new NotFoundException('Avatar not found');
+    }
+    return ResponseUtil.success({ avatarUrl });
   }
 
   @UseGuards(JwtAuthGuard)
@@ -52,10 +66,7 @@ export class UserController {
     @UploadedFile() file?: Express.Multer.File,
   ) {
     const avatarUrl = await this.userService.updateAvatar(user.userId, file);
-    return ResponseUtil.success(
-      { image: avatarUrl },
-      'Avatar updated successfully',
-    );
+    return ResponseUtil.success({ avatarUrl }, 'Avatar updated successfully');
   }
 
   @UseGuards(JwtAuthGuard)
