@@ -10,7 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { SignUpDto } from './dto/signup.dto';
 import { UserService } from '../user/user.service';
 import { SessionService } from './session.service';
-import { ResponseUtil } from '../../common/utils/response.util';
+import { ResponseBuilder } from '../../common/utils/response.util';
 import {
   JWT_ACCESS_TOKEN_EXPIRATION,
   JWT_REFRESH_TOKEN_EXPIRATION,
@@ -51,7 +51,7 @@ export class AuthService {
     const user = await this.usersService.create(signUpDto);
     const { password: _, ...result } = user;
 
-    return ResponseUtil.created(result, 'User created successfully');
+    return ResponseBuilder.created(result, 'User created successfully');
   }
 
   async signIn(user: any, deviceInfo?: string, ipAddress?: string) {
@@ -71,7 +71,7 @@ export class AuthService {
       ipAddress,
     );
 
-    return ResponseUtil.success(
+    return ResponseBuilder.success(
       {
         ...tokens,
       },
@@ -108,7 +108,7 @@ export class AuthService {
       expiresAt,
     );
 
-    return ResponseUtil.success(tokens, 'Tokens refreshed successfully');
+    return ResponseBuilder.success(tokens, 'Tokens refreshed successfully');
   }
 
   async logout(userId: number, refreshToken: string) {
@@ -121,12 +121,12 @@ export class AuthService {
       await this.sessionService.deleteSession(session.id);
     }
 
-    return ResponseUtil.success(null, 'Logged out successfully');
+    return ResponseBuilder.success(null, 'Logged out successfully');
   }
 
   async logoutAll(userId: number) {
     await this.sessionService.deleteUserSessions(userId);
-    return ResponseUtil.success(
+    return ResponseBuilder.success(
       null,
       'Logged out from all devices successfully',
     );

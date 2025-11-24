@@ -26,7 +26,7 @@ import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { Roles } from './decorators/roles.decorator';
-import { Role } from '@prisma/client';
+import { Role } from '../../../generated/prisma/client';
 
 @Controller('admin')
 export class AdminController {
@@ -261,7 +261,7 @@ curl http://localhost:3000/auth/admin-only \
 2. **Use Prisma Enum**
 
    ```typescript
-   import { Role } from '@prisma/client';
+   import { Role } from '../../../generated/prisma/client';
    // Type-safe!
    ```
 

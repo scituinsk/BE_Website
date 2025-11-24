@@ -1,5 +1,5 @@
 // import { IsOptional, IsEnum, IsString } from 'class-validator';
-// import { ProjectEnvironment } from '@prisma/client';
+// import { ProjectEnvironment } from '../../../generated/prisma/client';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 export class QueryProjectsDto extends PaginationDto {

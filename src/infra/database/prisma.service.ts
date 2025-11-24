@@ -1,8 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../../../generated/prisma/client';
 import { Injectable, OnModuleInit, Inject } from '@nestjs/common';
 import type { LoggerService } from '@nestjs/common';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { PrismaLogger } from '../logging/prisma.logger';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit {
@@ -12,7 +13,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     @Inject(WINSTON_MODULE_NEST_PROVIDER)
     private readonly logger: LoggerService,
   ) {
+    const adapter = new PrismaPg({
+      connectionString: process.env.DATABASE_URL,
+    });
+
     super({
+      adapter,
       log: [
         {
           emit: 'event',

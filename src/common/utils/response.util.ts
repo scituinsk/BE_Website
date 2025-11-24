@@ -1,4 +1,4 @@
-export class ResponseUtil {
+export class ResponseBuilder {
   static success<T>(data: T, message?: string) {
     return {
       statusCode: 200,

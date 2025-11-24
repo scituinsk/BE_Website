@@ -18,14 +18,14 @@ import { JwtRefreshAuthGuard } from './guards/jwt-refresh-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Roles } from './decorators/roles.decorator';
-import { Role } from '@prisma/client';
+import { Role } from '../../../generated/prisma/client';
 import {
   COOKIE_ACCESS_TOKEN_MAX_AGE,
   COOKIE_REFRESH_TOKEN_MAX_AGE,
   COOKIE_ACCESS_TOKEN_NAME,
   COOKIE_REFRESH_TOKEN_NAME,
 } from '../../common/constants/auth.constants';
-import { ResponseUtil } from 'src/common/utils/response.util';
+import { ResponseBuilder } from 'src/common/utils/response.util';
 
 @Controller('auth')
 export class AuthController {
@@ -130,7 +130,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('session')
   getSession(@CurrentUser() user: any) {
-    return ResponseUtil.success(user);
+    return ResponseBuilder.success(user);
   }
 
   // Example: Admin-only endpoint

@@ -2,77 +2,33 @@ import {
   Controller,
   Delete,
   Get,
-  NotFoundException,
   Param,
   ParseIntPipe,
-  Post,
-  UploadedFile,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { UserService } from './user.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { ResponseUtil } from '../../common/utils/response.util';
+import { ResponseBuilder } from '../../common/utils/response.util';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('users')
 export class UserController {
   constructor(private userService: UserService) {}
 
-  @UseGuards(JwtAuthGuard)
-  @Get('me')
-  async getCurrentUser(@CurrentUser() user: any) {
-    const userData = await this.userService.findById(user.userId);
-    if (!userData) {
-      throw new NotFoundException('User not found');
-    }
-
-    const avatarUrl = await this.userService.getAvatarUrl(user.userId);
-
-    const { password, ...result } = userData;
-    return ResponseUtil.success({ ...result, avatarUrl });
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Get('/')
+  async getAllUsers() {
+    const users = await this.userService.findAll();
+    return ResponseBuilder.success(users);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get(':id')
-  async getUserById(@Param('id', ParseIntPipe) id: number) {
-    const user = await this.userService.findById(id);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    const avatarUrl = await this.userService.getAvatarUrl(id);
-
-    const { password, ...result } = user;
-    return ResponseUtil.success({ ...result, avatarUrl });
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('me/avatar')
-  async getMyAvatar(@CurrentUser() user: any) {
-    const avatarUrl = await this.userService.getAvatarUrl(user.userId);
-    if (!avatarUrl) {
-      throw new NotFoundException('Avatar not found');
-    }
-    return ResponseUtil.success({ avatarUrl });
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post('me/avatar')
-  @UseInterceptors(FileInterceptor('file'))
-  async updateAvatar(
-    @CurrentUser() user: any,
-    @UploadedFile() file?: Express.Multer.File,
-  ) {
-    const avatarUrl = await this.userService.updateAvatar(user.userId, file);
-    return ResponseUtil.success({ avatarUrl }, 'Avatar updated successfully');
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Delete('me/avatar')
-  async deleteAvatar(@CurrentUser() user: any) {
-    await this.userService.deleteAvatar(user.userId);
-    return ResponseUtil.success(null, 'Avatar deleted successfully');
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Delete('/:userId')
+  async deleteUserById(@Param('userId', ParseIntPipe) userId: number) {
+    await this.userService.delete(userId);
+    return ResponseBuilder.noContent('Success delete user');
   }
 }

@@ -173,7 +173,7 @@ Already installed:
 
 - `@nestjs/common`
 - `@nestjs/jwt`
-- `@prisma/client`
+- `../../../generated/prisma/client`
 - `bcrypt`
 
 Optional:

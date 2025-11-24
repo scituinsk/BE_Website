@@ -13,11 +13,11 @@ import {
 } from '@nestjs/common';
 
 import { ProjectService } from './project.service';
-import { FindOneProjectDto } from './dto/find-one.dto';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { QueryProjectsDto } from './dto/query-projects.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ResponseBuilder } from 'src/common/utils/response.util';
 
 @Controller('projects')
 export class ProjectController {
@@ -29,7 +29,10 @@ export class ProjectController {
    */
   @Get('/')
   async findAll(@Query() query: QueryProjectsDto) {
-    throw new NotImplementedException(query);
+    console.log(query);
+
+    const projects = await this.projectService.findAll();
+    return ResponseBuilder.success(projects);
   }
 
   /**
@@ -37,8 +40,10 @@ export class ProjectController {
    * /projects/:projectId
    */
   @Get(':projectId')
-  async findOne(@Param() findOneProjectDto: FindOneProjectDto) {
-    throw new NotImplementedException(findOneProjectDto);
+  async findOne(@Param('projectId', ParseIntPipe) projectId: number) {
+    const project = await this.projectService.findById(projectId);
+
+    return ResponseBuilder.success(project);
   }
 
   /**
@@ -48,8 +53,9 @@ export class ProjectController {
   @Post('/')
   @UseGuards(JwtAuthGuard)
   async create(@Body() createProjectDto: CreateProjectDto) {
-    this.projectService;
-    throw new NotImplementedException(createProjectDto);
+    const project = await this.projectService.create(createProjectDto);
+
+    return ResponseBuilder.success(project, 'Project created successfully');
   }
 
   /**
@@ -69,7 +75,11 @@ export class ProjectController {
   @Delete(':projectId')
   @UseGuards(JwtAuthGuard)
   async remove(@Param('projectId', ParseIntPipe) id: number) {
-    throw new NotImplementedException(id);
+    const deletedProject = await this.projectService.delete(id);
+    return ResponseBuilder.success(
+      deletedProject,
+      'Project deleted successfully',
+    );
   }
 
   /**

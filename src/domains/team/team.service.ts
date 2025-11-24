@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
-import { ResponseUtil } from 'src/common/utils/response.util';
+import { ResponseBuilder } from 'src/common/utils/response.util';
 import { PrismaService } from 'src/infra/database/prisma.service';
 
 @Injectable()
@@ -39,7 +39,7 @@ export class TeamService {
       },
     };
 
-    return ResponseUtil.success(response);
+    return ResponseBuilder.success(response);
   }
 
   async getDivisionBySlug(slug: string, paginationDto: PaginationDto) {
@@ -97,7 +97,7 @@ export class TeamService {
       prevPage: hasPrevPage ? +page - 1 : null,
     };
 
-    return ResponseUtil.successWithPagination(response, paginationMetadata);
+    return ResponseBuilder.successWithPagination(response, paginationMetadata);
   }
 
   addMember(divisionId: string) {

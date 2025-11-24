@@ -14,7 +14,6 @@ import { AuthModule } from './domains/auth/auth.module';
 import { UserService } from './domains/user/user.service';
 import { UserModule } from './domains/user/user.module';
 import { createWinstonConfig } from './infra/logging/winston.config';
-import { CommonModule } from './domains/common/common.module';
 import { S3Module } from './infra/s3/s3.module';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerBehindProxyGuard } from './guards/throttler-behind-proxy.guard';
@@ -43,7 +42,6 @@ import { SeederModule } from './seeder/seeder.module';
     GalleryModule,
     AuthModule,
     UserModule,
-    CommonModule,
     S3Module,
     SeederModule,
   ],

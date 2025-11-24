@@ -2,8 +2,8 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { Injectable, Logger } from '@nestjs/common';
 
-import { PrismaService } from '../../infra/database/prisma.service';
 import { S3Service } from '../../infra/s3/s3.service';
+import { PrismaService } from '../../infra/database/prisma.service';
 import { BCRYPT_SALT_ROUNDS } from '../../common/constants/auth.constants';
 
 @Injectable()
@@ -14,6 +14,22 @@ export class UserService {
     private prisma: PrismaService,
     private s3Service: S3Service,
   ) {}
+
+  async findAll() {
+    return this.prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+  }
 
   async findOne(username: string) {
     return this.prisma.user.findUnique({
@@ -201,6 +217,26 @@ export class UserService {
 
       throw error;
     }
+  }
+
+  async delete(userId: number) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+
+    if (!existingUser) {
+      return true;
+    }
+
+    await this.prisma.user.delete({
+      where: {
+        id: userId,
+      },
+    });
+
+    return true;
   }
 
   /**
