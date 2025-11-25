@@ -15,10 +15,7 @@ import { SignUpDto } from './dto/signup.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshAuthGuard } from './guards/jwt-refresh-auth.guard';
-import { RolesGuard } from './guards/roles.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
-import { Roles } from './decorators/roles.decorator';
-import { Role } from '../../../generated/prisma/client';
 import {
   COOKIE_ACCESS_TOKEN_MAX_AGE,
   COOKIE_REFRESH_TOKEN_MAX_AGE,
@@ -66,7 +63,7 @@ export class AuthController {
       maxAge: COOKIE_REFRESH_TOKEN_MAX_AGE,
     });
 
-    return result;
+    return ResponseBuilder.created(result, 'User created successfully');
   }
 
   @UseGuards(JwtRefreshAuthGuard)
@@ -131,27 +128,5 @@ export class AuthController {
   @Get('session')
   getSession(@CurrentUser() user: any) {
     return ResponseBuilder.success(user);
-  }
-
-  // Example: Admin-only endpoint
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
-  @Get('admin-only')
-  getAdminData(@CurrentUser() user: any) {
-    return {
-      message: 'This is admin-only data',
-      user,
-    };
-  }
-
-  // Example: User or Admin endpoint
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.USER, Role.ADMIN)
-  @Get('user-data')
-  getUserData(@CurrentUser() user: any) {
-    return {
-      message: 'This data is accessible by USER and ADMIN',
-      user,
-    };
   }
 }

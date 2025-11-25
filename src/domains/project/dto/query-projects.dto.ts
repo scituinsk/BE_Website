@@ -1,15 +1,8 @@
-// import { IsOptional, IsEnum, IsString } from 'class-validator';
-// import { ProjectEnvironment } from '../../../generated/prisma/client';
+import { IsOptional, IsString } from 'class-validator';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 export class QueryProjectsDto extends PaginationDto {
-  // @IsOptional()
-  // @IsEnum(ProjectEnvironment)
-  // environment?: ProjectEnvironment;
-  // @IsOptional()
-  // @IsString()
-  // search?: string;
-  // @IsOptional()
-  // @IsString()
-  // limit?: string;
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

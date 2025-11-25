@@ -18,6 +18,7 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 import { QueryProjectsDto } from './dto/query-projects.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ResponseBuilder } from 'src/common/utils/response.util';
+import { ChangeSlugDto } from './dto/change-slug-dto';
 
 @Controller('projects')
 export class ProjectController {
@@ -29,10 +30,8 @@ export class ProjectController {
    */
   @Get('/')
   async findAll(@Query() query: QueryProjectsDto) {
-    console.log(query);
-
-    const projects = await this.projectService.findAll();
-    return ResponseBuilder.success(projects);
+    const { data, pagination } = await this.projectService.findAll(query);
+    return ResponseBuilder.successWithPagination(data, pagination);
   }
 
   /**
@@ -62,10 +61,18 @@ export class ProjectController {
    * Endpoint untuk memperbarui slug project (Membutuhkan otentikasi)
    * PATCH /projects/:projectId
    */
-  @Patch('/:projectId')
+  @Patch('/change-slug/:projectId')
   @UseGuards(JwtAuthGuard)
-  async updateSlug(@Body() updateProjectDto: UpdateProjectDto) {
-    throw new NotImplementedException({ ...updateProjectDto });
+  async updateSlug(
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Body() changeSlugDto: ChangeSlugDto,
+  ) {
+    const result = await this.projectService.changeSlug(
+      projectId,
+      changeSlugDto,
+    );
+
+    return ResponseBuilder.success(result, 'Slug updated successfully');
   }
 
   /**
@@ -97,11 +104,12 @@ export class ProjectController {
 
   /**
    * Endpoint untuk mendapatkan daftar semua tech stack yang tersedia
-   * /projects/tech-stacks/lists
+   * /projects/tech-stacks
    */
   @Get('/tech-stacks/lists')
-  async getAllTechStackList(@Query() query: QueryProjectsDto) {
-    throw new NotImplementedException(query);
+  async getAllTechStackList(@Query('search') query: string) {
+    const { data } = await this.projectService.findAllTechstack(query);
+    return ResponseBuilder.success(data);
   }
 
   /**

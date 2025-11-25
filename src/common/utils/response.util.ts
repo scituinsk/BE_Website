@@ -1,3 +1,10 @@
+export interface PaginationMeta {
+  page: number;
+  perPage: number;
+  total: number;
+  totalPages: number;
+}
+
 export class ResponseBuilder {
   static success<T>(data: T, message?: string) {
     return {
@@ -9,16 +16,7 @@ export class ResponseBuilder {
 
   static successWithPagination<T>(
     data: T,
-    pagination: {
-      page: number;
-      perPage: number;
-      totalItems: number;
-      totalPages: number;
-      hasNextPage: boolean;
-      hasPrevPage: boolean;
-      nextPage?: number | null;
-      prevPage?: number | null;
-    },
+    pagination: PaginationMeta,
     message?: string,
   ) {
     return {
@@ -41,6 +39,19 @@ export class ResponseBuilder {
     return {
       statusCode: 204,
       message: message || 'No content',
+    };
+  }
+
+  static buildPaginationMeta(
+    page: number,
+    perPage: number,
+    total: number,
+  ): PaginationMeta {
+    return {
+      page,
+      perPage,
+      total,
+      totalPages: Math.ceil(total / perPage),
     };
   }
 }

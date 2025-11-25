@@ -47,11 +47,10 @@ export class AuthService {
       throw new ConflictException('Username already exists');
     }
 
-    // Create new user with Gravatar
     const user = await this.usersService.create(signUpDto);
     const { password: _, ...result } = user;
 
-    return ResponseBuilder.created(result, 'User created successfully');
+    return result;
   }
 
   async signIn(user: any, deviceInfo?: string, ipAddress?: string) {

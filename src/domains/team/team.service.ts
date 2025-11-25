@@ -54,9 +54,9 @@ export class TeamService {
       throw new NotFoundException('Divisi tidak ditemukan');
     }
 
-    const { page = 1, perPage = 10 } = paginationDto;
-    const skip = (page - 1) * perPage;
-    const take = perPage;
+    const { page = 1, per_page = 10 } = paginationDto;
+    const skip = (page - 1) * per_page;
+    const take = per_page;
 
     const [members, totalItems] = await Promise.all([
       this.prismaService.member.findMany({
@@ -77,9 +77,7 @@ export class TeamService {
       }),
     ]);
 
-    const totalPages = Math.ceil(totalItems / perPage);
-    const hasNextPage = page < totalPages;
-    const hasPrevPage = page > 1;
+    const totalPages = Math.ceil(totalItems / per_page);
 
     const response = {
       divisionInfo: division,
@@ -88,13 +86,9 @@ export class TeamService {
 
     const paginationMetadata = {
       page: +page,
-      perPage: +perPage,
-      totalItems: totalItems,
+      perPage: +per_page,
+      total: totalItems,
       totalPages: totalPages,
-      hasNextPage: hasNextPage,
-      hasPrevPage: hasPrevPage,
-      nextPage: hasNextPage ? +page + 1 : null,
-      prevPage: hasPrevPage ? +page - 1 : null,
     };
 
     return ResponseBuilder.successWithPagination(response, paginationMetadata);

@@ -70,8 +70,8 @@ model Project {
   description String
   about       String?            @db.Text
   slug        String             @unique
-  duration    Int?
-  launchDate  DateTime?
+  duration    String?
+  launchYear  String?
   demoUrl     String?
   status      ProjectStatus      @default(BETA_LAUNCH)
   createdAt   DateTime           @default(now())

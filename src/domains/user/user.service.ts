@@ -1,10 +1,11 @@
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 
 import { S3Service } from '../../infra/s3/s3.service';
 import { PrismaService } from '../../infra/database/prisma.service';
 import { BCRYPT_SALT_ROUNDS } from '../../common/constants/auth.constants';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UserService {
@@ -217,6 +218,57 @@ export class UserService {
 
       throw error;
     }
+  }
+
+  async update(updateUserDto: UpdateUserDto) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { id: updateUserDto.userId },
+    });
+
+    if (!existingUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const updateData: any = {};
+
+    // Update name if provided
+    if (updateUserDto.name) {
+      updateData.name = updateUserDto.name;
+    }
+
+    // Update username/email if provided
+    if (updateUserDto.username) {
+      updateData.username = updateUserDto.username;
+    }
+
+    // Update password if provided
+    if (updateUserDto.password) {
+      updateData.password = await bcrypt.hash(
+        updateUserDto.password,
+        BCRYPT_SALT_ROUNDS,
+      );
+    }
+
+    // Update role if provided
+    if (updateUserDto.role) {
+      updateData.role = updateUserDto.role;
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: updateUserDto.userId },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    this.logger.log(`User updated successfully: ${updateUserDto.userId}`);
+    return updatedUser;
   }
 
   async delete(userId: number) {

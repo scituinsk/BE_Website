@@ -19,4 +19,12 @@ export class CreateProjectDto {
   @IsString()
   @IsOptional()
   linkDemo?: string;
+
+  @IsString()
+  @IsOptional()
+  duration: string;
+
+  @IsString()
+  @IsOptional()
+  launchYear: string;
 }
