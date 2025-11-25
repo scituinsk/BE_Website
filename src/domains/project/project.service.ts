@@ -9,9 +9,10 @@ import { tryCatchAsync } from 'src/common/utils/trycatch';
 import { PrismaService } from 'src/infra/database/prisma.service';
 import { ResponseBuilder } from 'src/common/utils/response.util';
 
-import { CreateProjectDto } from './dto/create-project.dto';
-import { QueryProjectsDto } from './dto/query-projects.dto';
-import { ChangeSlugDto } from './dto/change-slug-dto';
+import { CreateProjectDto } from './dtos/create-project.dto';
+import { QueryProjectsDto } from './dtos/query-projects.dto';
+import { ChangeSlugDto } from './dtos/change-slug-dto';
+import { UpdateBasicInfoDto } from './dtos/update-basic-info.dto';
 
 @Injectable()
 export class ProjectService {
@@ -107,42 +108,16 @@ export class ProjectService {
       this.prismaService.project.findUniqueOrThrow({
         where: { id },
         include: {
-          images: {
-            select: {
-              id: true,
-              imageUrl: true,
-              isPrimary: true,
-            },
-          },
+          images: true,
           technologies: {
             select: {
               technology: true,
             },
           },
-          challenges: {
-            select: {
-              id: true,
-              challenge: true,
-            },
-          },
-          keyFeatures: {
-            select: {
-              id: true,
-              feature: true,
-            },
-          },
-          results: {
-            select: {
-              id: true,
-              result: true,
-            },
-          },
-          testimonials: {
-            select: {
-              id: true,
-              testimonial: true,
-            },
-          },
+          challenges: true,
+          keyFeatures: true,
+          results: true,
+          testimonials: true,
         },
       }),
     );
@@ -156,7 +131,12 @@ export class ProjectService {
       throw error;
     }
 
-    return projectById;
+    const formatedProjectById = {
+      ...projectById,
+      technologies: projectById.technologies.map((t) => t.technology),
+    };
+
+    return formatedProjectById;
   }
 
   async changeSlug(projectId: number, ChangeSlugDto: ChangeSlugDto) {
@@ -205,6 +185,41 @@ export class ProjectService {
     }
 
     return deletedProject;
+  }
+
+  async updateBasicInfo(
+    projectId: number,
+    updateBasicInfoDto: UpdateBasicInfoDto,
+  ) {
+    const { title, demoUrl, description, duration, launchYear, status } =
+      updateBasicInfoDto;
+
+    const [project, error] = await tryCatchAsync(
+      this.prismaService.project.update({
+        where: {
+          id: projectId,
+        },
+        data: {
+          title,
+          description,
+          duration,
+          launchYear,
+          status,
+          demoUrl,
+        },
+      }),
+    );
+
+    if (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          throw new NotFoundException('Project not found');
+        }
+      }
+      throw error;
+    }
+
+    return project;
   }
 
   async findAllTechstack(search: string) {

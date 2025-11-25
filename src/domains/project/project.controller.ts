@@ -13,42 +13,30 @@ import {
 } from '@nestjs/common';
 
 import { ProjectService } from './project.service';
-import { CreateProjectDto } from './dto/create-project.dto';
-import { UpdateProjectDto } from './dto/update-project.dto';
-import { QueryProjectsDto } from './dto/query-projects.dto';
+import { CreateProjectDto } from './dtos/create-project.dto';
+import { UpdateProjectDto } from './dtos/update-project.dto';
+import { QueryProjectsDto } from './dtos/query-projects.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ResponseBuilder } from 'src/common/utils/response.util';
-import { ChangeSlugDto } from './dto/change-slug-dto';
+import { ChangeSlugDto } from './dtos/change-slug-dto';
+import { UpdateBasicInfoDto } from './dtos/update-basic-info.dto';
 
 @Controller('projects')
 export class ProjectController {
   constructor(private readonly projectService: ProjectService) {}
 
-  /**
-   * Endpoint ini untuk mendapatkan list project dengan pagination, filter, dan sorting
-   * /projects
-   */
   @Get('/')
   async findAll(@Query() query: QueryProjectsDto) {
     const { data, pagination } = await this.projectService.findAll(query);
     return ResponseBuilder.successWithPagination(data, pagination);
   }
 
-  /**
-   * Endpoint untuk mendapatkan satu project berdasarkan projectId
-   * /projects/:projectId
-   */
   @Get(':projectId')
   async findOne(@Param('projectId', ParseIntPipe) projectId: number) {
     const project = await this.projectService.findById(projectId);
-
     return ResponseBuilder.success(project);
   }
 
-  /**
-   * Endpoint untuk membuat project baru (Membutuhkan otentikasi)
-   * POST /projects
-   */
   @Post('/')
   @UseGuards(JwtAuthGuard)
   async create(@Body() createProjectDto: CreateProjectDto) {
@@ -57,10 +45,6 @@ export class ProjectController {
     return ResponseBuilder.success(project, 'Project created successfully');
   }
 
-  /**
-   * Endpoint untuk memperbarui slug project (Membutuhkan otentikasi)
-   * PATCH /projects/:projectId
-   */
   @Patch('/change-slug/:projectId')
   @UseGuards(JwtAuthGuard)
   async updateSlug(
@@ -75,10 +59,6 @@ export class ProjectController {
     return ResponseBuilder.success(result, 'Slug updated successfully');
   }
 
-  /**
-   * Endpoint untuk menghapus project berdasarkan projectId (Membutuhkan otentikasi)
-   * DELETE /projects/:projectId
-   */
   @Delete(':projectId')
   @UseGuards(JwtAuthGuard)
   async remove(@Param('projectId', ParseIntPipe) id: number) {
@@ -89,17 +69,18 @@ export class ProjectController {
     );
   }
 
-  /**
-   * Endpoint untuk memperbarui informasi dasar project (Membutuhkan otentikasi)
-   * PATCH /projects/:projectId/basic-infos
-   */
-  @Patch(':projectId/basic-infos')
+  @Patch(':projectId/basic-info')
   @UseGuards(JwtAuthGuard)
   async updateBasicInfo(
-    @Param('projectId', ParseIntPipe) id: number,
-    @Body() updateProjectDto: UpdateProjectDto,
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Body() updateBasicInfoDto: UpdateBasicInfoDto,
   ) {
-    throw new NotImplementedException({ id, ...updateProjectDto });
+    const result = await this.projectService.updateBasicInfo(
+      projectId,
+      updateBasicInfoDto,
+    );
+
+    return ResponseBuilder.success(result, 'Basic info updated successfully');
   }
 
   /**
