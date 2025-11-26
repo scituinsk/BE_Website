@@ -8,6 +8,7 @@ import {
 import { tryCatchAsync } from 'src/common/utils/trycatch';
 import { PrismaService } from 'src/infra/database/prisma.service';
 import { ResponseBuilder } from 'src/common/utils/response.util';
+import { S3Service } from 'src/infra/s3/s3.service';
 
 import { CreateProjectDto } from './dtos/create-project.dto';
 import { QueryProjectsDto } from './dtos/query-projects.dto';
@@ -17,10 +18,15 @@ import { SyncTechnologiesDto } from './dtos/sync-technologies.dto';
 import { SyncProjectDetailsDto } from './dtos/sync-project-detail.dto';
 import { CreateTestimonialDto } from './dtos/create-testimonial.dto';
 import { UpdateTestimonialDto } from './dtos/update-testimonial.dto';
+import { UploadProjectImageDto } from './dtos/upload-project-image.dto';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class ProjectService {
-  constructor(private prismaService: PrismaService) {}
+  constructor(
+    private prismaService: PrismaService,
+    private s3Service: S3Service,
+  ) {}
 
   async findAll(query: QueryProjectsDto) {
     const { page = 1, per_page = 10, search } = query;
@@ -112,7 +118,11 @@ export class ProjectService {
       this.prismaService.project.findUniqueOrThrow({
         where: { id },
         include: {
-          images: true,
+          images: {
+            where: {
+              isUsed: true,
+            },
+          },
           technologies: {
             select: {
               technology: true,
@@ -466,5 +476,279 @@ export class ProjectService {
     return this.prismaService.projectTestimonial.delete({
       where: { id: testimonialId },
     });
+  }
+
+  async uploadProjectImage(
+    projectId: number,
+    uploadProjectImageDto: UploadProjectImageDto,
+  ) {
+    const { fileType, fileSize } = uploadProjectImageDto;
+
+    const fileName = randomUUID();
+
+    const allowedMimeTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+    ];
+
+    if (!allowedMimeTypes.includes(fileType)) {
+      throw new BadRequestException(
+        'Jenis file tidak didukung. Hanya JPEG, PNG, GIF, dan WEBP yang diizinkan.',
+      );
+    }
+
+    // Validasi project exists
+    const existingProject = await this.prismaService.project.findUnique({
+      where: {
+        id: projectId,
+      },
+    });
+
+    if (!existingProject) {
+      throw new NotFoundException('Project tidak ditemukan');
+    }
+
+    // Generate presigned URL untuk upload
+    const { uploadUrl, fileUrl, key } =
+      await this.s3Service.generatePresignedUploadUrl(
+        fileName,
+        fileType,
+        'projects',
+        3600, // 1 hour expiry
+      );
+
+    // Create project image record dengan status pending
+    const projectImage = await this.prismaService.projectImage.create({
+      data: {
+        project: {
+          connect: {
+            id: projectId,
+          },
+        },
+        fileName,
+        fileType,
+        fileSize,
+        imageUrl: fileUrl,
+        key: key,
+        isUsed: false, // akan di-set true saat konfirmasi upload
+      },
+    });
+
+    return {
+      id: projectImage.id,
+      uploadUrl,
+      fileUrl,
+      key,
+    };
+  }
+
+  async confirmProjectImageUpload(projectId: number, imageId: number) {
+    // Validasi project exists
+    const existingProject = await this.prismaService.project.findUnique({
+      where: {
+        id: projectId,
+      },
+    });
+
+    if (!existingProject) {
+      throw new NotFoundException('Project tidak ditemukan');
+    }
+
+    // Validasi image exists dan belongs to this project
+    const projectImage = await this.prismaService.projectImage.findFirst({
+      where: {
+        id: imageId,
+        projectId: projectId,
+      },
+    });
+
+    if (!projectImage) {
+      throw new NotFoundException(
+        'Project image tidak ditemukan atau tidak terkait dengan project ini',
+      );
+    }
+
+    const [_, error] = await tryCatchAsync(
+      this.prismaService.projectImage.update({
+        where: {
+          id: imageId,
+        },
+        data: {
+          isUsed: true,
+        },
+      }),
+    );
+
+    if (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          throw new NotFoundException('Image not found');
+        }
+      }
+      throw error;
+    }
+
+    return {
+      id: projectImage.id,
+      fileName: projectImage.fileName,
+      imageUrl: projectImage.imageUrl,
+      isPrimary: projectImage.isPrimary,
+    };
+  }
+
+  /**
+   * Cleanup orphan project images (called by cronjob)
+   * Deletes ProjectImage records where isUsed = false
+   * Also attempts to delete files from S3
+   */
+  async cleanupOrphanProjectImages(): Promise<{
+    total: number;
+    deleted: number;
+    failed: number;
+  }> {
+    // Find all unused project images
+    const orphanImages = await this.prismaService.projectImage.findMany({
+      where: {
+        isUsed: false,
+      },
+      select: {
+        id: true,
+        key: true,
+      },
+    });
+
+    const total = orphanImages.length;
+    let deleted = 0;
+    let failed = 0;
+
+    for (const image of orphanImages) {
+      try {
+        // Delete from S3 if exists
+        const fileExists = await this.s3Service.fileExists(image.key);
+        if (fileExists) {
+          await this.s3Service.deleteFileByKey(image.key);
+        }
+
+        // Delete from database
+        await this.prismaService.projectImage.delete({
+          where: { id: image.id },
+        });
+
+        deleted++;
+      } catch (error) {
+        failed++;
+        // Log error but continue with other images
+        console.error(
+          `Failed to delete orphan project image ${image.id}: ${error.message}`,
+        );
+      }
+    }
+
+    return { total, deleted, failed };
+  }
+
+  async setPrimaryImage(projectId: number, imageId: number) {
+    // Gunakan transaction untuk memastikan atomicity
+    const [result, error] = await tryCatchAsync(
+      this.prismaService.$transaction(async (tx) => {
+        // Validasi project exists
+        await tx.project.findUniqueOrThrow({
+          where: { id: projectId },
+        });
+
+        // Validasi image exists dan belongs to this project
+        const image = await tx.projectImage.findFirst({
+          where: {
+            id: imageId,
+            projectId: projectId,
+          },
+        });
+
+        if (!image) {
+          throw new NotFoundException(
+            'Project image tidak ditemukan atau tidak terkait dengan project ini',
+          );
+        }
+
+        // Set semua images dalam project ini menjadi isPrimary = false
+        await tx.projectImage.updateMany({
+          where: {
+            projectId: projectId,
+          },
+          data: {
+            isPrimary: false,
+          },
+        });
+
+        // Set image yang dipilih menjadi isPrimary = true
+        const updatedImage = await tx.projectImage.update({
+          where: { id: imageId },
+          data: {
+            isPrimary: true,
+          },
+        });
+
+        return updatedImage;
+      }),
+    );
+
+    if (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          throw new NotFoundException('Project not found');
+        }
+      }
+      throw error;
+    }
+
+    return result;
+  }
+
+  async deleteProjectImage(projectId: number, imageId: number) {
+    const [result, error] = await tryCatchAsync(
+      this.prismaService.$transaction(async (tx) => {
+        // Validasi project exists
+        await tx.project.findUniqueOrThrow({
+          where: { id: projectId },
+        });
+
+        // Validasi image exists dan belongs to this project
+        const image = await tx.projectImage.findFirst({
+          where: {
+            id: imageId,
+            projectId: projectId,
+          },
+        });
+
+        if (!image) {
+          throw new NotFoundException(
+            'Project image tidak ditemukan atau tidak terkait dengan project ini',
+          );
+        }
+
+        // Mark deleted image in db
+        const deletedImage = await tx.projectImage.update({
+          where: { id: imageId },
+          data: {
+            isUsed: false,
+          },
+        });
+
+        return deletedImage;
+      }),
+    );
+
+    if (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          throw new NotFoundException('Project not found');
+        }
+      }
+      throw error;
+    }
+
+    return result;
   }
 }

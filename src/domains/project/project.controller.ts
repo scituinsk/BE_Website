@@ -24,6 +24,7 @@ import { UpdateBasicInfoDto } from './dtos/update-basic-info.dto';
 import { SyncTechnologiesDto } from './dtos/sync-technologies.dto';
 import { SyncProjectDetailsDto } from './dtos/sync-project-detail.dto';
 import { CreateTestimonialDto } from './dtos/create-testimonial.dto';
+import { UploadProjectImageDto } from './dtos/upload-project-image.dto';
 
 @Controller('projects')
 export class ProjectController {
@@ -170,34 +171,62 @@ export class ProjectController {
     return ResponseBuilder.success(result, 'Testimonial deleted successfully');
   }
 
-  // @Get(':projectId/images')
-  // @UseGuards(JwtAuthGuard)
-  // async getAllProjectImages(@Param('projectId', ParseIntPipe) id: number) {
-  //   throw new NotImplementedException({ id });
-  // }
+  @Post(':projectId/images/upload')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async uploadProjectImage(
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Body() uploadProjectImageDto: UploadProjectImageDto,
+  ) {
+    const result = await this.projectService.uploadProjectImage(
+      projectId,
+      uploadProjectImageDto,
+    );
+    return ResponseBuilder.success(
+      result,
+      'Presigned URL generated successfully',
+    );
+  }
 
-  //   @Post(':projectId/images')
-  //   @UseGuards(JwtAuthGuard)
-  //   async uploadProjectImages(
-  //     @Param('projectId', ParseIntPipe) id: number,
-  //     @Body() updateProjectDto: UpdateProjectDto,
-  //   ) {
-  //     // Endpoint ini harus return presigned URL dan upload image satu per satu dari frontend
-  //     throw new NotImplementedException({ id, ...updateProjectDto });
-  //   }
+  @Post(':projectId/images/:imageId/confirm')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async confirmProjectImageUpload(
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Param('imageId', ParseIntPipe) imageId: number,
+  ) {
+    const result = await this.projectService.confirmProjectImageUpload(
+      projectId,
+      imageId,
+    );
+    return ResponseBuilder.success(result, 'Upload confirmed successfully');
+  }
 
-  //   @Patch(':projectId/images')
-  //   @UseGuards(JwtAuthGuard)
-  //   async setPrimaryImage(
-  //     @Param('projectId', ParseIntPipe) id: number,
-  //     @Body() updateProjectDto: UpdateProjectDto,
-  //   ) {
-  //     throw new NotImplementedException({ id, ...updateProjectDto });
-  //   }
+  @Patch(':projectId/images/:imageId')
+  @UseGuards(JwtAuthGuard)
+  async setPrimaryImage(
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Param('imageId', ParseIntPipe) imageId: number,
+  ) {
+    const result = await this.projectService.setPrimaryImage(
+      projectId,
+      imageId,
+    );
 
-  //   @Delete(':projectId/images/:imageId')
-  //   @UseGuards(JwtAuthGuard)
-  //   async deleteProjectImage(@Param('projectId', ParseIntPipe) id: number) {
-  //     throw new NotImplementedException({ id });
-  //   }
+    return ResponseBuilder.success(result, 'Primary image set successfully');
+  }
+
+  @Delete(':projectId/images/:imageId')
+  @UseGuards(JwtAuthGuard)
+  async deleteImage(
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Param('imageId', ParseIntPipe) imageId: number,
+  ) {
+    const result = await this.projectService.deleteProjectImage(
+      projectId,
+      imageId,
+    );
+
+    return ResponseBuilder.success(result, 'Image deleted successfully');
+  }
 }

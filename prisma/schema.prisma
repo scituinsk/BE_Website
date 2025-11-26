@@ -122,6 +122,10 @@ model ResultsProject {
 
 model ProjectImage {
   id        Int      @id @default(autoincrement())
+  key       String   @unique
+  fileName  String
+  fileType  String
+  fileSize  Int
   projectId Int
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   imageUrl  String
