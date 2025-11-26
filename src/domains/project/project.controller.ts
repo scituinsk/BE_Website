@@ -10,6 +10,8 @@ import {
   Query,
   ParseIntPipe,
   NotImplementedException,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 
 import { ProjectService } from './project.service';
@@ -18,8 +20,9 @@ import { UpdateProjectDto } from './dtos/update-project.dto';
 import { QueryProjectsDto } from './dtos/query-projects.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ResponseBuilder } from 'src/common/utils/response.util';
-import { ChangeSlugDto } from './dtos/change-slug-dto';
+import { UpdateSlugDto } from './dtos/update-slug-dto';
 import { UpdateBasicInfoDto } from './dtos/update-basic-info.dto';
+import { SyncTechnologiesDto } from './dtos/sync-technologies.dto';
 
 @Controller('projects')
 export class ProjectController {
@@ -49,11 +52,11 @@ export class ProjectController {
   @UseGuards(JwtAuthGuard)
   async updateSlug(
     @Param('projectId', ParseIntPipe) projectId: number,
-    @Body() changeSlugDto: ChangeSlugDto,
+    @Body() updateSulugDto: UpdateSlugDto,
   ) {
     const result = await this.projectService.changeSlug(
       projectId,
-      changeSlugDto,
+      updateSulugDto,
     );
 
     return ResponseBuilder.success(result, 'Slug updated successfully');
@@ -83,27 +86,27 @@ export class ProjectController {
     return ResponseBuilder.success(result, 'Basic info updated successfully');
   }
 
-  /**
-   * Endpoint untuk mendapatkan daftar semua tech stack yang tersedia
-   * /projects/tech-stacks
-   */
   @Get('/tech-stacks/lists')
   async getAllTechStackList(@Query('search') query: string) {
     const { data } = await this.projectService.findAllTechstack(query);
     return ResponseBuilder.success(data);
   }
 
-  /**
-   * Endpoint untuk memperbarui tech stack pada project (Membutuhkan otentikasi)
-   * PATCH /projects/:projectId/tech-stacks
-   */
-  @Patch(':projectId/tech-stacks')
+  @Post(':projectId/technologies')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   async updateTechStack(
-    @Param('projectId', ParseIntPipe) id: number,
-    @Body() updateProjectDto: UpdateProjectDto,
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Body() syncTechnologiesDto: SyncTechnologiesDto,
   ) {
-    throw new NotImplementedException({ id, ...updateProjectDto });
+    const result = await this.projectService.syncTechnologies(
+      projectId,
+      syncTechnologiesDto,
+    );
+    return ResponseBuilder.success(
+      result,
+      'Technologies synchronized successfully',
+    );
   }
 
   /**

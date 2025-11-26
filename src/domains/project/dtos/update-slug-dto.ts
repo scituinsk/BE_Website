@@ -1,6 +1,6 @@
 import { IsDefined, IsNotEmpty, IsString } from 'class-validator';
 
-export class ChangeSlugDto {
+export class UpdateSlugDto {
   @IsString()
   @IsDefined()
   @IsNotEmpty()

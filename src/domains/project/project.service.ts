@@ -11,8 +11,9 @@ import { ResponseBuilder } from 'src/common/utils/response.util';
 
 import { CreateProjectDto } from './dtos/create-project.dto';
 import { QueryProjectsDto } from './dtos/query-projects.dto';
-import { ChangeSlugDto } from './dtos/change-slug-dto';
+import { UpdateSlugDto } from './dtos/update-slug-dto';
 import { UpdateBasicInfoDto } from './dtos/update-basic-info.dto';
+import { SyncTechnologiesDto } from './dtos/sync-technologies.dto';
 
 @Injectable()
 export class ProjectService {
@@ -139,8 +140,8 @@ export class ProjectService {
     return formatedProjectById;
   }
 
-  async changeSlug(projectId: number, ChangeSlugDto: ChangeSlugDto) {
-    const { slug } = ChangeSlugDto;
+  async changeSlug(projectId: number, updateSlugDto: UpdateSlugDto) {
+    const { slug } = updateSlugDto;
     const [project, error] = await tryCatchAsync(
       this.prismaService.project.update({
         where: {
@@ -236,5 +237,89 @@ export class ProjectService {
     });
 
     return { data: technologies };
+  }
+
+  async syncTechnologies(
+    projectId: number,
+    syncTechnologiesDto: SyncTechnologiesDto,
+  ) {
+    const { technologies } = syncTechnologiesDto;
+    const technologyIds = technologies.map((tech) => tech.id);
+
+    // Gunakan transaction untuk memastikan atomicity
+    const [result, error] = await tryCatchAsync(
+      this.prismaService.$transaction(async (tx) => {
+        // Validasi project ada
+        await tx.project.findUniqueOrThrow({
+          where: { id: projectId },
+        });
+
+        // Validasi semua technology IDs ada di database
+        const existingTechnologies = await tx.technology.findMany({
+          where: {
+            id: {
+              in: technologyIds,
+            },
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        const existingTechnologyIds = existingTechnologies.map(
+          (tech) => tech.id,
+        );
+
+        // Cek apakah ada technology ID yang tidak ada di database
+        const invalidTechnologyIds = technologyIds.filter(
+          (id) => !existingTechnologyIds.includes(id),
+        );
+
+        if (invalidTechnologyIds.length > 0) {
+          throw new BadRequestException(
+            `Technology with ID(s) ${invalidTechnologyIds.join(', ')} not found in database`,
+          );
+        }
+
+        // Sinkronisasi: hapus semua technology lama dan tambahkan yang baru
+        const updatedProject = await tx.project.update({
+          where: { id: projectId },
+          data: {
+            technologies: {
+              deleteMany: {},
+              create: technologyIds.map((techId) => ({
+                technologyId: techId,
+              })),
+            },
+          },
+          include: {
+            technologies: {
+              select: {
+                technology: true,
+              },
+            },
+          },
+        });
+
+        return updatedProject;
+      }),
+    );
+
+    if (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          throw new NotFoundException('Project not found');
+        }
+      }
+      throw error;
+    }
+
+    // Format response untuk mengembalikan technologies
+    const formatedProject = {
+      ...result,
+      technologies: result.technologies.map((t) => t.technology),
+    };
+
+    return formatedProject;
   }
 }
