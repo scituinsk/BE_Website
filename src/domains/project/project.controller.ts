@@ -9,14 +9,13 @@ import {
   UseGuards,
   Query,
   ParseIntPipe,
-  NotImplementedException,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 
 import { ProjectService } from './project.service';
 import { CreateProjectDto } from './dtos/create-project.dto';
-import { UpdateProjectDto } from './dtos/update-project.dto';
+import { UpdateTestimonialDto } from './dtos/update-testimonial.dto';
 import { QueryProjectsDto } from './dtos/query-projects.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ResponseBuilder } from 'src/common/utils/response.util';
@@ -24,6 +23,7 @@ import { UpdateSlugDto } from './dtos/update-slug-dto';
 import { UpdateBasicInfoDto } from './dtos/update-basic-info.dto';
 import { SyncTechnologiesDto } from './dtos/sync-technologies.dto';
 import { SyncProjectDetailsDto } from './dtos/sync-project-detail.dto';
+import { CreateTestimonialDto } from './dtos/create-testimonial.dto';
 
 @Controller('projects')
 export class ProjectController {
@@ -128,100 +128,76 @@ export class ProjectController {
     );
   }
 
-  /**
-   * Endpoint untuk mendapatkan semua gambar dari sebuah project (Membutuhkan otentikasi)
-   * GET /projects/:projectId/images
-   */
-  @Get(':projectId/images')
-  @UseGuards(JwtAuthGuard)
-  async getAllProjectImages(@Param('projectId', ParseIntPipe) id: number) {
-    throw new NotImplementedException({ id });
-  }
-
-  /**
-   * Endpoint untuk mengunggah gambar project (Membutuhkan otentikasi)
-   * Akan mengembalikan presigned URL untuk upload.
-   * POST /projects/:projectId/images
-   */
-  @Post(':projectId/images')
-  @UseGuards(JwtAuthGuard)
-  async uploadProjectImages(
-    @Param('projectId', ParseIntPipe) id: number,
-    @Body() updateProjectDto: UpdateProjectDto,
-  ) {
-    // Endpoint ini harus return presigned URL dan upload image satu per satu dari frontend
-    throw new NotImplementedException({ id, ...updateProjectDto });
-  }
-
-  /**
-   * Endpoint untuk menetapkan gambar utama/primary (Membutuhkan otentikasi)
-   * PATCH /projects/:projectId/images
-   */
-  @Patch(':projectId/images')
-  @UseGuards(JwtAuthGuard)
-  async setPrimaryImage(
-    @Param('projectId', ParseIntPipe) id: number,
-    @Body() updateProjectDto: UpdateProjectDto,
-  ) {
-    throw new NotImplementedException({ id, ...updateProjectDto });
-  }
-
-  /**
-   * Endpoint untuk menghapus gambar project berdasarkan imageId (Membutuhkan otentikasi)
-   * DELETE /projects/:projectId/images/:imageId
-   */
-  @Delete(':projectId/images/:imageId')
-  @UseGuards(JwtAuthGuard)
-  async deleteProjectImage(@Param('projectId', ParseIntPipe) id: number) {
-    throw new NotImplementedException({ id });
-  }
-
-  /**
-   * Endpoint untuk mendapatkan semua testimoni dari sebuah project (Membutuhkan otentikasi)
-   * GET /projects/:projectId/testimonials
-   */
-  @Get(':projectId/testimonials')
-  @UseGuards(JwtAuthGuard)
-  async getAllTestimonials(@Param('projectId', ParseIntPipe) id: number) {
-    throw new NotImplementedException({ id });
-  }
-
-  /**
-   * Endpoint untuk membuat testimoni baru untuk project (Membutuhkan otentikasi)
-   * POST /projects/:projectId/testimonials
-   */
   @Post(':projectId/testimonials')
   @UseGuards(JwtAuthGuard)
   async createTestimonials(
-    @Param('projectId', ParseIntPipe) id: number,
-    @Body() updateProjectDto: UpdateProjectDto,
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Body() createTestimonialDto: CreateTestimonialDto,
   ) {
-    throw new NotImplementedException({ id, ...updateProjectDto });
+    const result = await this.projectService.createTestimonial(
+      projectId,
+      createTestimonialDto,
+    );
+
+    return ResponseBuilder.success(result, 'Testimonial created successfully');
   }
 
-  /**
-   * Endpoint untuk mengedit testimoni berdasarkan testimonialId (Membutuhkan otentikasi)
-   * PATCH /projects/:projectId/testimonials/:testimonialId
-   */
   @Patch(':projectId/testimonials/:testimonialId')
   @UseGuards(JwtAuthGuard)
   async editTestimonials(
-    @Param('projectId', ParseIntPipe) id: number,
-    @Body() updateProjectDto: UpdateProjectDto,
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Param('testimonialId', ParseIntPipe) testimonialId: number,
+    @Body() updateTestimonialDto: UpdateTestimonialDto,
   ) {
-    throw new NotImplementedException({ id, ...updateProjectDto });
+    const result = await this.projectService.editTestimonial(
+      projectId,
+      testimonialId,
+      updateTestimonialDto,
+    );
+    return ResponseBuilder.success(result, 'Testimonial updated successfully');
   }
 
-  /**
-   * Endpoint untuk menghapus testimoni berdasarkan testimonialId (Membutuhkan otentikasi)
-   * DELETE /projects/:projectId/testimonials/:testimonialId
-   */
   @Delete(':projectId/testimonials/:testimonialId')
   @UseGuards(JwtAuthGuard)
   async deleteTestimonial(
-    @Param('projectId', ParseIntPipe) id: number,
-    @Body() updateProjectDto: UpdateProjectDto,
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Param('testimonialId', ParseIntPipe) testimonialId: number,
   ) {
-    throw new NotImplementedException({ id, ...updateProjectDto });
+    const result = await this.projectService.deleteTestimonial(
+      projectId,
+      testimonialId,
+    );
+    return ResponseBuilder.success(result, 'Testimonial deleted successfully');
   }
+
+  // @Get(':projectId/images')
+  // @UseGuards(JwtAuthGuard)
+  // async getAllProjectImages(@Param('projectId', ParseIntPipe) id: number) {
+  //   throw new NotImplementedException({ id });
+  // }
+
+  //   @Post(':projectId/images')
+  //   @UseGuards(JwtAuthGuard)
+  //   async uploadProjectImages(
+  //     @Param('projectId', ParseIntPipe) id: number,
+  //     @Body() updateProjectDto: UpdateProjectDto,
+  //   ) {
+  //     // Endpoint ini harus return presigned URL dan upload image satu per satu dari frontend
+  //     throw new NotImplementedException({ id, ...updateProjectDto });
+  //   }
+
+  //   @Patch(':projectId/images')
+  //   @UseGuards(JwtAuthGuard)
+  //   async setPrimaryImage(
+  //     @Param('projectId', ParseIntPipe) id: number,
+  //     @Body() updateProjectDto: UpdateProjectDto,
+  //   ) {
+  //     throw new NotImplementedException({ id, ...updateProjectDto });
+  //   }
+
+  //   @Delete(':projectId/images/:imageId')
+  //   @UseGuards(JwtAuthGuard)
+  //   async deleteProjectImage(@Param('projectId', ParseIntPipe) id: number) {
+  //     throw new NotImplementedException({ id });
+  //   }
 }

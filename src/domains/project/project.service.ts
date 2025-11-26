@@ -15,6 +15,8 @@ import { UpdateSlugDto } from './dtos/update-slug-dto';
 import { UpdateBasicInfoDto } from './dtos/update-basic-info.dto';
 import { SyncTechnologiesDto } from './dtos/sync-technologies.dto';
 import { SyncProjectDetailsDto } from './dtos/sync-project-detail.dto';
+import { CreateTestimonialDto } from './dtos/create-testimonial.dto';
+import { UpdateTestimonialDto } from './dtos/update-testimonial.dto';
 
 @Injectable()
 export class ProjectService {
@@ -387,5 +389,82 @@ export class ProjectService {
     }
 
     return result;
+  }
+
+  async createTestimonial(
+    projectId: number,
+    createTestimonialDto: CreateTestimonialDto,
+  ) {
+    const { name, avatarUrl, rating, role, testimonial } = createTestimonialDto;
+
+    const existingProject = await this.prismaService.project.findUnique({
+      where: {
+        id: projectId,
+      },
+    });
+
+    if (!existingProject) {
+      throw new NotFoundException('Project tidak ditemukan');
+    }
+
+    return this.prismaService.projectTestimonial.create({
+      data: {
+        project: {
+          connect: {
+            id: projectId,
+          },
+        },
+        name,
+        rating,
+        role,
+        testimonial,
+        avatarUrl,
+      },
+    });
+  }
+
+  async editTestimonial(
+    projectId: number,
+    testimonialId: number,
+    updateTestimonialDto: UpdateTestimonialDto,
+  ) {
+    const existingTestimonial =
+      await this.prismaService.projectTestimonial.findFirst({
+        where: {
+          id: testimonialId,
+          projectId: projectId,
+        },
+      });
+
+    if (!existingTestimonial) {
+      throw new NotFoundException('Testimonial not found for this project');
+    }
+    const { name, avatarUrl, rating, role, testimonial } = updateTestimonialDto;
+
+    return this.prismaService.projectTestimonial.update({
+      where: { id: testimonialId },
+      data: {
+        name,
+        avatarUrl,
+        rating,
+        role,
+        testimonial,
+      },
+    });
+  }
+  async deleteTestimonial(projectId: number, testimonialId: number) {
+    const existingTestimonial =
+      await this.prismaService.projectTestimonial.findFirst({
+        where: {
+          id: testimonialId,
+          projectId: projectId,
+        },
+      });
+    if (!existingTestimonial) {
+      throw new NotFoundException('Testimonial not found for this project');
+    }
+    return this.prismaService.projectTestimonial.delete({
+      where: { id: testimonialId },
+    });
   }
 }
