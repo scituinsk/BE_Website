@@ -23,6 +23,7 @@ import { ResponseBuilder } from 'src/common/utils/response.util';
 import { UpdateSlugDto } from './dtos/update-slug-dto';
 import { UpdateBasicInfoDto } from './dtos/update-basic-info.dto';
 import { SyncTechnologiesDto } from './dtos/sync-technologies.dto';
+import { SyncProjectDetailsDto } from './dtos/sync-project-detail.dto';
 
 @Controller('projects')
 export class ProjectController {
@@ -109,17 +110,22 @@ export class ProjectController {
     );
   }
 
-  /**
-   * Endpoint untuk memperbarui detail project (Membutuhkan otentikasi)
-   * PATCH /projects/:projectId/project-details
-   */
-  @Patch(':projectId/project-details')
+  @Post(':projectId/details')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  async updateProjectDetail(
-    @Param('projectId', ParseIntPipe) id: number,
-    @Body() updateProjectDto: UpdateProjectDto,
+  async syncProjectDetail(
+    @Param('projectId', ParseIntPipe) projectId: number,
+    @Body() syncProjectDetailsDto: SyncProjectDetailsDto,
   ) {
-    throw new NotImplementedException({ id, ...updateProjectDto });
+    const result = await this.projectService.syncProjectDetail(
+      projectId,
+      syncProjectDetailsDto,
+    );
+
+    return ResponseBuilder.success(
+      result,
+      'Project details synchronized successfully',
+    );
   }
 
   /**

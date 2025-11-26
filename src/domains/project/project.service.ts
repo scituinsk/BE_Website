@@ -14,6 +14,7 @@ import { QueryProjectsDto } from './dtos/query-projects.dto';
 import { UpdateSlugDto } from './dtos/update-slug-dto';
 import { UpdateBasicInfoDto } from './dtos/update-basic-info.dto';
 import { SyncTechnologiesDto } from './dtos/sync-technologies.dto';
+import { SyncProjectDetailsDto } from './dtos/sync-project-detail.dto';
 
 @Injectable()
 export class ProjectService {
@@ -321,5 +322,70 @@ export class ProjectService {
     };
 
     return formatedProject;
+  }
+
+  async syncProjectDetail(
+    projectId: number,
+    syncProjectDetailsDto: SyncProjectDetailsDto,
+  ) {
+    const { aboutProject, features, challenges, results } =
+      syncProjectDetailsDto;
+
+    // Gunakan transaction untuk memastikan atomicity
+    const [result, error] = await tryCatchAsync(
+      this.prismaService.$transaction(async (tx) => {
+        // Validasi project ada
+        await tx.project.findUniqueOrThrow({
+          where: { id: projectId },
+        });
+
+        // Update project details dengan sinkronisasi semua relasi sekaligus
+        const updatedProject = await tx.project.update({
+          where: { id: projectId },
+          data: {
+            about: aboutProject,
+            // Sync key features: hapus semua lalu buat baru
+            keyFeatures: {
+              deleteMany: {},
+              create: features.map((feature) => ({
+                feature: feature.feature,
+              })),
+            },
+            // Sync challenges: hapus semua lalu buat baru
+            challenges: {
+              deleteMany: {},
+              create: challenges.map((challenge) => ({
+                challenge: challenge.challenge,
+              })),
+            },
+            // Sync results: hapus semua lalu buat baru
+            results: {
+              deleteMany: {},
+              create: results.map((result) => ({
+                result: result.result,
+              })),
+            },
+          },
+          include: {
+            keyFeatures: true,
+            challenges: true,
+            results: true,
+          },
+        });
+
+        return updatedProject;
+      }),
+    );
+
+    if (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          throw new NotFoundException('Project not found');
+        }
+      }
+      throw error;
+    }
+
+    return result;
   }
 }
