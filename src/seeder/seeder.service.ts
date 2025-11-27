@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from 'src/infra/database/prisma.service';
+import { PrismaService } from 'src/infrastructure/database/prisma.service';
 
 import data from './data/techstack.json';
 

@@ -312,7 +312,7 @@ Jika sudah ada users dengan Gravatar URL, buat migration script:
 ```typescript
 // scripts/migrate-avatars-to-s3.ts
 import { PrismaClient } from '../../../generated/prisma/client';
-import { S3Service } from './src/infra/s3/s3.service';
+import { S3Service } from './src/infrastructure/s3/s3.service';
 
 async function migrateAvatars() {
   const prisma = new PrismaClient();

@@ -5,10 +5,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { tryCatchAsync } from 'src/common/utils/trycatch';
-import { PrismaService } from 'src/infra/database/prisma.service';
-import { ResponseBuilder } from 'src/common/utils/response.util';
-import { S3Service } from 'src/infra/s3/s3.service';
+import { PrismaService } from 'src/infrastructure/database/prisma.service';
+import { ResponseBuilder } from 'src/utils/response-builder.util';
+import { S3Service } from 'src/infrastructure/s3/s3.service';
 
 import { CreateProjectDto } from './dtos/create-project.dto';
 import { QueryProjectsDto } from './dtos/query-projects.dto';
@@ -86,64 +85,40 @@ export class ProjectService {
     const { title, description, slug, linkDemo, launchYear, duration } =
       createProjectDto;
 
-    const [project, error] = await tryCatchAsync(
-      this.prismaService.project.create({
-        data: {
-          title,
-          description,
-          slug,
-          demoUrl: linkDemo,
-          launchYear,
-          duration,
-        },
-      }),
-    );
-
-    if (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') {
-          throw new BadRequestException(
-            'Project with this slug already exists',
-          );
-        }
-      }
-      throw error;
-    }
+    const project = await this.prismaService.project.create({
+      data: {
+        title,
+        description,
+        slug,
+        demoUrl: linkDemo,
+        launchYear,
+        duration,
+      },
+    });
 
     return project;
   }
 
   async findById(id: number) {
-    const [projectById, error] = await tryCatchAsync(
-      this.prismaService.project.findUniqueOrThrow({
-        where: { id },
-        include: {
-          images: {
-            where: {
-              isUsed: true,
-            },
+    const projectById = await this.prismaService.project.findUniqueOrThrow({
+      where: { id },
+      include: {
+        images: {
+          where: {
+            isUsed: true,
           },
-          technologies: {
-            select: {
-              technology: true,
-            },
-          },
-          challenges: true,
-          keyFeatures: true,
-          results: true,
-          testimonials: true,
         },
-      }),
-    );
-
-    if (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new NotFoundException('Project not found');
-        }
-      }
-      throw error;
-    }
+        technologies: {
+          select: {
+            technology: true,
+          },
+        },
+        challenges: true,
+        keyFeatures: true,
+        results: true,
+        testimonials: true,
+      },
+    });
 
     const formatedProjectById = {
       ...projectById,
@@ -155,48 +130,22 @@ export class ProjectService {
 
   async changeSlug(projectId: number, updateSlugDto: UpdateSlugDto) {
     const { slug } = updateSlugDto;
-    const [project, error] = await tryCatchAsync(
-      this.prismaService.project.update({
-        where: {
-          id: projectId,
-        },
-        data: {
-          slug,
-        },
-      }),
-    );
-
-    if (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new NotFoundException('Project not found');
-        } else if (error.code === 'P2002') {
-          throw new BadRequestException(
-            'Project with this slug already exists',
-          );
-        }
-      }
-      throw error;
-    }
+    const project = await this.prismaService.project.update({
+      where: {
+        id: projectId,
+      },
+      data: {
+        slug,
+      },
+    });
 
     return project;
   }
 
   async delete(projectId: number) {
-    const [deletedProject, error] = await tryCatchAsync(
-      this.prismaService.project.delete({
-        where: { id: projectId },
-      }),
-    );
-
-    if (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new NotFoundException('Project not found');
-        }
-      }
-      throw error;
-    }
+    const deletedProject = await this.prismaService.project.delete({
+      where: { id: projectId },
+    });
 
     return deletedProject;
   }
@@ -208,43 +157,30 @@ export class ProjectService {
     const { title, demoUrl, description, duration, launchYear, status } =
       updateBasicInfoDto;
 
-    const [project, error] = await tryCatchAsync(
-      this.prismaService.project.update({
-        where: {
-          id: projectId,
-        },
-        data: {
-          title,
-          description,
-          duration,
-          launchYear,
-          status,
-          demoUrl,
-        },
-      }),
-    );
-
-    if (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new NotFoundException('Project not found');
-        }
-      }
-      throw error;
-    }
+    const project = await this.prismaService.project.update({
+      where: {
+        id: projectId,
+      },
+      data: {
+        title,
+        description,
+        duration,
+        launchYear,
+        status,
+        demoUrl,
+      },
+    });
 
     return project;
   }
 
   async findAllTechstack(search: string) {
-    // Build where clause for searching
     const where: Prisma.TechnologyWhereInput = search
       ? {
           OR: [{ name: { contains: search, mode: 'insensitive' } }],
         }
       : {};
 
-    // Get projects with pagination
     const technologies = await this.prismaService.technology.findMany({
       where,
     });
@@ -260,74 +196,60 @@ export class ProjectService {
     const technologyIds = technologies.map((tech) => tech.id);
 
     // Gunakan transaction untuk memastikan atomicity
-    const [result, error] = await tryCatchAsync(
-      this.prismaService.$transaction(async (tx) => {
-        // Validasi project ada
-        await tx.project.findUniqueOrThrow({
-          where: { id: projectId },
-        });
+    const result = await this.prismaService.$transaction(async (tx) => {
+      // Validasi project ada
+      await tx.project.findUniqueOrThrow({
+        where: { id: projectId },
+      });
 
-        // Validasi semua technology IDs ada di database
-        const existingTechnologies = await tx.technology.findMany({
-          where: {
-            id: {
-              in: technologyIds,
-            },
+      // Validasi semua technology IDs ada di database
+      const existingTechnologies = await tx.technology.findMany({
+        where: {
+          id: {
+            in: technologyIds,
           },
-          select: {
-            id: true,
-          },
-        });
+        },
+        select: {
+          id: true,
+        },
+      });
 
-        const existingTechnologyIds = existingTechnologies.map(
-          (tech) => tech.id,
+      const existingTechnologyIds = existingTechnologies.map((tech) => tech.id);
+
+      // Cek apakah ada technology ID yang tidak ada di database
+      const invalidTechnologyIds = technologyIds.filter(
+        (id) => !existingTechnologyIds.includes(id),
+      );
+
+      if (invalidTechnologyIds.length > 0) {
+        throw new BadRequestException(
+          `Technology with ID(s) ${invalidTechnologyIds.join(', ')} not found in database`,
         );
-
-        // Cek apakah ada technology ID yang tidak ada di database
-        const invalidTechnologyIds = technologyIds.filter(
-          (id) => !existingTechnologyIds.includes(id),
-        );
-
-        if (invalidTechnologyIds.length > 0) {
-          throw new BadRequestException(
-            `Technology with ID(s) ${invalidTechnologyIds.join(', ')} not found in database`,
-          );
-        }
-
-        // Sinkronisasi: hapus semua technology lama dan tambahkan yang baru
-        const updatedProject = await tx.project.update({
-          where: { id: projectId },
-          data: {
-            technologies: {
-              deleteMany: {},
-              create: technologyIds.map((techId) => ({
-                technologyId: techId,
-              })),
-            },
-          },
-          include: {
-            technologies: {
-              select: {
-                technology: true,
-              },
-            },
-          },
-        });
-
-        return updatedProject;
-      }),
-    );
-
-    if (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new NotFoundException('Project not found');
-        }
       }
-      throw error;
-    }
 
-    // Format response untuk mengembalikan technologies
+      // Sinkronisasi: hapus semua technology lama dan tambahkan yang baru
+      const updatedProject = await tx.project.update({
+        where: { id: projectId },
+        data: {
+          technologies: {
+            deleteMany: {},
+            create: technologyIds.map((techId) => ({
+              technologyId: techId,
+            })),
+          },
+        },
+        include: {
+          technologies: {
+            select: {
+              technology: true,
+            },
+          },
+        },
+      });
+
+      return updatedProject;
+    });
+
     const formatedProject = {
       ...result,
       technologies: result.technologies.map((t) => t.technology),
@@ -343,60 +265,48 @@ export class ProjectService {
     const { aboutProject, features, challenges, results } =
       syncProjectDetailsDto;
 
-    // Gunakan transaction untuk memastikan atomicity
-    const [result, error] = await tryCatchAsync(
-      this.prismaService.$transaction(async (tx) => {
-        // Validasi project ada
-        await tx.project.findUniqueOrThrow({
-          where: { id: projectId },
-        });
+    const result = await this.prismaService.$transaction(async (tx) => {
+      // Validasi project ada
+      await tx.project.findUniqueOrThrow({
+        where: { id: projectId },
+      });
 
-        // Update project details dengan sinkronisasi semua relasi sekaligus
-        const updatedProject = await tx.project.update({
-          where: { id: projectId },
-          data: {
-            about: aboutProject,
-            // Sync key features: hapus semua lalu buat baru
-            keyFeatures: {
-              deleteMany: {},
-              create: features.map((feature) => ({
-                feature: feature.feature,
-              })),
-            },
-            // Sync challenges: hapus semua lalu buat baru
-            challenges: {
-              deleteMany: {},
-              create: challenges.map((challenge) => ({
-                challenge: challenge.challenge,
-              })),
-            },
-            // Sync results: hapus semua lalu buat baru
-            results: {
-              deleteMany: {},
-              create: results.map((result) => ({
-                result: result.result,
-              })),
-            },
+      // Update project details dengan sinkronisasi semua relasi sekaligus
+      const updatedProject = await tx.project.update({
+        where: { id: projectId },
+        data: {
+          about: aboutProject,
+          // Sync key features: hapus semua lalu buat baru
+          keyFeatures: {
+            deleteMany: {},
+            create: features.map((feature) => ({
+              feature: feature.feature,
+            })),
           },
-          include: {
-            keyFeatures: true,
-            challenges: true,
-            results: true,
+          // Sync challenges: hapus semua lalu buat baru
+          challenges: {
+            deleteMany: {},
+            create: challenges.map((challenge) => ({
+              challenge: challenge.challenge,
+            })),
           },
-        });
+          // Sync results: hapus semua lalu buat baru
+          results: {
+            deleteMany: {},
+            create: results.map((result) => ({
+              result: result.result,
+            })),
+          },
+        },
+        include: {
+          keyFeatures: true,
+          challenges: true,
+          results: true,
+        },
+      });
 
-        return updatedProject;
-      }),
-    );
-
-    if (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new NotFoundException('Project not found');
-        }
-      }
-      throw error;
-    }
+      return updatedProject;
+    });
 
     return result;
   }
@@ -516,7 +426,7 @@ export class ProjectService {
         fileName,
         fileType,
         'projects',
-        3600, // 1 hour expiry
+        3600, // 1 hour expirationnya
       );
 
     // Create project image record dengan status pending
@@ -570,25 +480,14 @@ export class ProjectService {
       );
     }
 
-    const [_, error] = await tryCatchAsync(
-      this.prismaService.projectImage.update({
-        where: {
-          id: imageId,
-        },
-        data: {
-          isUsed: true,
-        },
-      }),
-    );
-
-    if (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new NotFoundException('Image not found');
-        }
-      }
-      throw error;
-    }
+    await this.prismaService.projectImage.update({
+      where: {
+        id: imageId,
+      },
+      data: {
+        isUsed: true,
+      },
+    });
 
     return {
       id: projectImage.id,
@@ -651,103 +550,81 @@ export class ProjectService {
 
   async setPrimaryImage(projectId: number, imageId: number) {
     // Gunakan transaction untuk memastikan atomicity
-    const [result, error] = await tryCatchAsync(
-      this.prismaService.$transaction(async (tx) => {
-        // Validasi project exists
-        await tx.project.findUniqueOrThrow({
-          where: { id: projectId },
-        });
+    const result = await this.prismaService.$transaction(async (tx) => {
+      // Validasi project exists
+      await tx.project.findUniqueOrThrow({
+        where: { id: projectId },
+      });
 
-        // Validasi image exists dan belongs to this project
-        const image = await tx.projectImage.findFirst({
-          where: {
-            id: imageId,
-            projectId: projectId,
-          },
-        });
+      // Validasi image exists dan belongs to this project
+      const image = await tx.projectImage.findFirst({
+        where: {
+          id: imageId,
+          projectId: projectId,
+        },
+      });
 
-        if (!image) {
-          throw new NotFoundException(
-            'Project image tidak ditemukan atau tidak terkait dengan project ini',
-          );
-        }
-
-        // Set semua images dalam project ini menjadi isPrimary = false
-        await tx.projectImage.updateMany({
-          where: {
-            projectId: projectId,
-          },
-          data: {
-            isPrimary: false,
-          },
-        });
-
-        // Set image yang dipilih menjadi isPrimary = true
-        const updatedImage = await tx.projectImage.update({
-          where: { id: imageId },
-          data: {
-            isPrimary: true,
-          },
-        });
-
-        return updatedImage;
-      }),
-    );
-
-    if (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new NotFoundException('Project not found');
-        }
+      if (!image) {
+        throw new NotFoundException(
+          'Project image tidak ditemukan atau tidak terkait dengan project ini',
+        );
       }
-      throw error;
-    }
+
+      // Set semua images dalam project ini menjadi isPrimary = false
+      await tx.projectImage.updateMany({
+        where: {
+          projectId: projectId,
+        },
+        data: {
+          isPrimary: false,
+        },
+      });
+
+      // Set image yang dipilih menjadi isPrimary = true
+      const updatedImage = await tx.projectImage.update({
+        where: { id: imageId },
+        data: {
+          isPrimary: true,
+        },
+      });
+
+      return updatedImage;
+    });
 
     return result;
   }
 
   async deleteProjectImage(projectId: number, imageId: number) {
-    const [result, error] = await tryCatchAsync(
-      this.prismaService.$transaction(async (tx) => {
-        // Validasi project exists
-        await tx.project.findUniqueOrThrow({
-          where: { id: projectId },
-        });
+    const result = await this.prismaService.$transaction(async (tx) => {
+      // Validasi project exists
+      await tx.project.findUniqueOrThrow({
+        where: { id: projectId },
+      });
 
-        // Validasi image exists dan belongs to this project
-        const image = await tx.projectImage.findFirst({
-          where: {
-            id: imageId,
-            projectId: projectId,
-          },
-        });
+      // Validasi image exists dan belongs to this project
+      const image = await tx.projectImage.findFirst({
+        where: {
+          id: imageId,
+          projectId: projectId,
+        },
+      });
 
-        if (!image) {
-          throw new NotFoundException(
-            'Project image tidak ditemukan atau tidak terkait dengan project ini',
-          );
-        }
-
-        // Mark deleted image in db
-        const deletedImage = await tx.projectImage.update({
-          where: { id: imageId },
-          data: {
-            isUsed: false,
-          },
-        });
-
-        return deletedImage;
-      }),
-    );
-
-    if (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          throw new NotFoundException('Project not found');
-        }
+      if (!image) {
+        throw new NotFoundException(
+          'Project image tidak ditemukan atau tidak terkait dengan project ini',
+        );
       }
-      throw error;
-    }
+
+      // Mark deleted image in db
+      const deletedImage = await tx.projectImage.update({
+        where: { id: imageId },
+        data: {
+          isUsed: false,
+        },
+      });
+
+      return deletedImage;
+    });
 
     return result;
   }

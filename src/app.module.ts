@@ -6,15 +6,15 @@ import { ScheduleModule } from '@nestjs/schedule';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { PrismaModule } from './infra/database/prisma.module';
+import { PrismaModule } from './infrastructure/database/prisma.module';
 import { TeamModule } from './domains/team/team.module';
 import { ProjectModule } from './domains/project/project.module';
 import { GalleryModule } from './domains/gallery/gallery.module';
 import { AuthModule } from './domains/auth/auth.module';
 import { UserService } from './domains/user/user.service';
 import { UserModule } from './domains/user/user.module';
-import { createWinstonConfig } from './infra/logging/winston.config';
-import { S3Module } from './infra/s3/s3.module';
+import { createWinstonConfig } from './infrastructure/logging/winston.config';
+import { S3Module } from './infrastructure/s3/s3.module';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerBehindProxyGuard } from './guards/throttler-behind-proxy.guard';
 import { SeederService } from './seeder/seeder.service';

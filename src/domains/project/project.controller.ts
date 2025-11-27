@@ -18,7 +18,7 @@ import { CreateProjectDto } from './dtos/create-project.dto';
 import { UpdateTestimonialDto } from './dtos/update-testimonial.dto';
 import { QueryProjectsDto } from './dtos/query-projects.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ResponseBuilder } from 'src/common/utils/response.util';
+import { ResponseBuilder } from 'src/utils/response-builder.util';
 import { UpdateSlugDto } from './dtos/update-slug-dto';
 import { UpdateBasicInfoDto } from './dtos/update-basic-info.dto';
 import { SyncTechnologiesDto } from './dtos/sync-technologies.dto';

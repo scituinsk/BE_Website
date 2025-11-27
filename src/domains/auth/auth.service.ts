@@ -10,11 +10,11 @@ import { ConfigService } from '@nestjs/config';
 import { SignUpDto } from './dto/signup.dto';
 import { UserService } from '../user/user.service';
 import { SessionService } from './session.service';
-import { ResponseBuilder } from '../../common/utils/response.util';
+import { ResponseBuilder } from '../../utils/response-builder.util';
 import {
   JWT_ACCESS_TOKEN_EXPIRATION,
   JWT_REFRESH_TOKEN_EXPIRATION,
-} from '../../common/constants/auth.constants';
+} from '../auth/auth.constants';
 
 @Injectable()
 export class AuthService {

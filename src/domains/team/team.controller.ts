@@ -2,7 +2,7 @@ import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { FindOneDivisionParams } from './dto/find-one-division-params.dto';
 import { TeamService } from './team.service';
-import { PaginationDto } from 'src/common/dto/pagination.dto';
+import { PaginationDto } from 'src/dto/pagination.dto';
 
 @Controller('teams')
 export class TeamController {

@@ -2,9 +2,9 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 
-import { S3Service } from '../../infra/s3/s3.service';
-import { PrismaService } from '../../infra/database/prisma.service';
-import { BCRYPT_SALT_ROUNDS } from '../../common/constants/auth.constants';
+import { S3Service } from '../../infrastructure/s3/s3.service';
+import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { BCRYPT_SALT_ROUNDS } from '../auth/auth.constants';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()

@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Request } from 'express';
-import { COOKIE_ACCESS_TOKEN_NAME } from '../../../common/constants/auth.constants';
+import { COOKIE_ACCESS_TOKEN_NAME } from '../auth.constants';
 import { UserService } from 'src/domains/user/user.service';
 
 @Injectable()

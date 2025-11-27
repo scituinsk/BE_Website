@@ -6,6 +6,7 @@ import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
 import { AppModule } from './app.module';
+import { PrismaExceptionFilter } from './prisma-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -37,6 +38,8 @@ async function bootstrap() {
       whitelist: true,
     }),
   );
+
+  app.useGlobalFilters(new PrismaExceptionFilter());
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);

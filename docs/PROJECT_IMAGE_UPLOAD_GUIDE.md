@@ -466,7 +466,7 @@ model ProjectImage {
 - **DTO**: `src/domains/project/dtos/upload-project-image.dto.ts`
   - Validation untuk fileName, fileType, fileSize
 
-- **S3 Service**: `src/infra/s3/s3.service.ts`
+- **S3 Service**: `src/infrastructure/s3/s3.service.ts`
   - `generatePresignedUploadUrl()`: Generate presigned URL
   - `fileExists()`: Verify file in S3
   - `deleteFileByKey()`: Delete file from S3

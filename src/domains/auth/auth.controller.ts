@@ -21,8 +21,8 @@ import {
   COOKIE_REFRESH_TOKEN_MAX_AGE,
   COOKIE_ACCESS_TOKEN_NAME,
   COOKIE_REFRESH_TOKEN_NAME,
-} from '../../common/constants/auth.constants';
-import { ResponseBuilder } from 'src/common/utils/response.util';
+} from '../auth/auth.constants';
+import { ResponseBuilder } from 'src/utils/response-builder.util';
 
 @Controller('auth')
 export class AuthController {
