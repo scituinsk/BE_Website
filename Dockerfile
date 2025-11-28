@@ -1,26 +1,34 @@
 # ---- Stage 1: Build ----
 FROM node:22-slim AS builder
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN apt-get update -y && apt-get install -y openssl \
+    && npm install
 
+COPY . .
+
+# Prisma generate
 COPY prisma ./prisma/
 RUN npx prisma generate
 
-COPY . .
+# Build NestJS
 RUN npm run build
 
 # ---- Stage 2: Production ----
 FROM node:22-slim AS production
 
-WORKDIR /usr/src/app
+WORKDIR /app
+
+RUN apt-get update -y && apt-get install -y openssl
 
 COPY package*.json ./
 RUN npm install --omit=dev
 
-COPY --from=builder /usr/src/app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/dist ./dist
+COPY .env ./
 
 EXPOSE 1001
-CMD ["node", "dist/src/main"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
