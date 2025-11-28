@@ -18,6 +18,7 @@ import { SyncProjectDetailsDto } from './dtos/sync-project-detail.dto';
 import { CreateTestimonialDto } from './dtos/create-testimonial.dto';
 import { UpdateTestimonialDto } from './dtos/update-testimonial.dto';
 import { UploadProjectImageDto } from './dtos/upload-project-image.dto';
+import { PROJECT_SORT_FIELD_MAPPING } from './project.constants';
 import { randomUUID } from 'crypto';
 
 @Injectable()
@@ -28,7 +29,13 @@ export class ProjectService {
   ) {}
 
   async findAll(query: QueryProjectsDto) {
-    const { page = 1, per_page = 10, search } = query;
+    const {
+      page = 1,
+      per_page = 10,
+      search,
+      sort_by,
+      sort_order = 'asc',
+    } = query;
     const skip = (page - 1) * per_page;
 
     // Build where clause for searching
@@ -41,6 +48,19 @@ export class ProjectService {
           ],
         }
       : {};
+
+    // Build orderBy clause dengan field mapping
+    let orderBy: Prisma.ProjectOrderByWithRelationInput = {
+      createdAt: 'desc', // default sorting
+    };
+
+    // Jika ada sort_by, gunakan mapping untuk mendapatkan field database yang sebenarnya
+    if (sort_by && PROJECT_SORT_FIELD_MAPPING[sort_by]) {
+      const dbField = PROJECT_SORT_FIELD_MAPPING[sort_by];
+      orderBy = {
+        [dbField]: sort_order,
+      };
+    }
 
     // Get total count for pagination
     const total = await this.prismaService.project.count({ where });
@@ -59,12 +79,11 @@ export class ProjectService {
         images: {
           where: {
             isPrimary: true,
+            isUsed: true,
           },
         },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy,
     });
 
     const formatedProjects = projects.map((project) => ({
@@ -102,6 +121,35 @@ export class ProjectService {
   async findById(id: number) {
     const projectById = await this.prismaService.project.findUniqueOrThrow({
       where: { id },
+      include: {
+        images: {
+          where: {
+            isUsed: true,
+          },
+        },
+        technologies: {
+          select: {
+            technology: true,
+          },
+        },
+        challenges: true,
+        keyFeatures: true,
+        results: true,
+        testimonials: true,
+      },
+    });
+
+    const formatedProjectById = {
+      ...projectById,
+      technologies: projectById.technologies.map((t) => t.technology),
+    };
+
+    return formatedProjectById;
+  }
+
+  async findBySlug(slug: string) {
+    const projectById = await this.prismaService.project.findUniqueOrThrow({
+      where: { slug },
       include: {
         images: {
           where: {
@@ -497,57 +545,6 @@ export class ProjectService {
     };
   }
 
-  /**
-   * Cleanup orphan project images (called by cronjob)
-   * Deletes ProjectImage records where isUsed = false
-   * Also attempts to delete files from S3
-   */
-  async cleanupOrphanProjectImages(): Promise<{
-    total: number;
-    deleted: number;
-    failed: number;
-  }> {
-    // Find all unused project images
-    const orphanImages = await this.prismaService.projectImage.findMany({
-      where: {
-        isUsed: false,
-      },
-      select: {
-        id: true,
-        key: true,
-      },
-    });
-
-    const total = orphanImages.length;
-    let deleted = 0;
-    let failed = 0;
-
-    for (const image of orphanImages) {
-      try {
-        // Delete from S3 if exists
-        const fileExists = await this.s3Service.fileExists(image.key);
-        if (fileExists) {
-          await this.s3Service.deleteFileByKey(image.key);
-        }
-
-        // Delete from database
-        await this.prismaService.projectImage.delete({
-          where: { id: image.id },
-        });
-
-        deleted++;
-      } catch (error) {
-        failed++;
-        // Log error but continue with other images
-        console.error(
-          `Failed to delete orphan project image ${image.id}: ${error.message}`,
-        );
-      }
-    }
-
-    return { total, deleted, failed };
-  }
-
   async setPrimaryImage(projectId: number, imageId: number) {
     // Gunakan transaction untuk memastikan atomicity
     const result = await this.prismaService.$transaction(async (tx) => {
@@ -627,5 +624,56 @@ export class ProjectService {
     });
 
     return result;
+  }
+
+  /**
+   * Cleanup orphan project images (called by cronjob)
+   * Deletes ProjectImage records where isUsed = false
+   * Also attempts to delete files from S3
+   */
+  async cleanupOrphanProjectImages(): Promise<{
+    total: number;
+    deleted: number;
+    failed: number;
+  }> {
+    // Find all unused project images
+    const orphanImages = await this.prismaService.projectImage.findMany({
+      where: {
+        isUsed: false,
+      },
+      select: {
+        id: true,
+        key: true,
+      },
+    });
+
+    const total = orphanImages.length;
+    let deleted = 0;
+    let failed = 0;
+
+    for (const image of orphanImages) {
+      try {
+        // Delete from S3 if exists
+        const fileExists = await this.s3Service.fileExists(image.key);
+        if (fileExists) {
+          await this.s3Service.deleteFileByKey(image.key);
+        }
+
+        // Delete from database
+        await this.prismaService.projectImage.delete({
+          where: { id: image.id },
+        });
+
+        deleted++;
+      } catch (error) {
+        failed++;
+        // Log error but continue with other images
+        console.error(
+          `Failed to delete orphan project image ${image.id}: ${error.message}`,
+        );
+      }
+    }
+
+    return { total, deleted, failed };
   }
 }

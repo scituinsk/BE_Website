@@ -42,6 +42,12 @@ export class ProjectController {
     return ResponseBuilder.success(project);
   }
 
+  @Get('/slug/:slug')
+  async findOneBySlug(@Param('slug') slug: string) {
+    const project = await this.projectService.findBySlug(slug);
+    return ResponseBuilder.success(project);
+  }
+
   @Post('/')
   @UseGuards(JwtAuthGuard)
   async create(@Body() createProjectDto: CreateProjectDto) {

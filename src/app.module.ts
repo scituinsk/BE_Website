@@ -1,29 +1,37 @@
+import * as Joi from 'joi';
+
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { WinstonModule } from 'nest-winston';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { PrismaModule } from './infrastructure/database/prisma.module';
-import { TeamModule } from './domains/team/team.module';
-import { ProjectModule } from './domains/project/project.module';
-import { GalleryModule } from './domains/gallery/gallery.module';
-import { AuthModule } from './domains/auth/auth.module';
-import { UserService } from './domains/user/user.service';
-import { UserModule } from './domains/user/user.module';
-import { createWinstonConfig } from './infrastructure/logging/winston.config';
 import { S3Module } from './infrastructure/s3/s3.module';
-import { APP_GUARD } from '@nestjs/core';
+import { PrismaModule } from './infrastructure/database/prisma.module';
 import { ThrottlerBehindProxyGuard } from './guards/throttler-behind-proxy.guard';
-import { SeederService } from './seeder/seeder.service';
+
+import { TeamModule } from './domains/team/team.module';
+import { AuthModule } from './domains/auth/auth.module';
+import { UserModule } from './domains/user/user.module';
+import { UserService } from './domains/user/user.service';
+import { GalleryModule } from './domains/gallery/gallery.module';
+import { ProjectModule } from './domains/project/project.module';
+
 import { SeederModule } from './seeder/seeder.module';
+import { SeederService } from './seeder/seeder.service';
+import { createWinstonConfig } from './infrastructure/logging/winston.config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validationSchema: Joi.object({
+        NODE_ENV: Joi.string()
+          .valid('development', 'production', 'test')
+          .default('development'),
+        PORT: Joi.number().port().default(2000),
+      }),
     }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot({
@@ -35,7 +43,10 @@ import { SeederModule } from './seeder/seeder.module';
       ],
       errorMessage: 'Too many requests, please try again later.',
     }),
-    WinstonModule.forRoot(createWinstonConfig()),
+    WinstonModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: createWinstonConfig,
+    }),
     PrismaModule,
     TeamModule,
     ProjectModule,
@@ -45,9 +56,8 @@ import { SeederModule } from './seeder/seeder.module';
     S3Module,
     SeederModule,
   ],
-  controllers: [AppController],
+  controllers: [],
   providers: [
-    AppService,
     UserService,
     {
       provide: APP_GUARD,

@@ -1,11 +1,12 @@
+import 'dotenv/config';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
-import { AppModule } from './app.module';
+import { SeederModule } from './seeder/seeder.module';
 import { SeederService } from './seeder/seeder.service';
 
 async function bootstrap() {
-  const appContext = await NestFactory.createApplicationContext(AppModule);
+  const appContext = await NestFactory.createApplicationContext(SeederModule);
   const logger = new Logger('Seeder');
 
   if (process.env.NODE_ENV === 'production') {
