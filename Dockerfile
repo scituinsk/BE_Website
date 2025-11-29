@@ -44,6 +44,10 @@ COPY --from=builder /usr/src/app/dist ./dist
 # agar menggantikan file yang tidak lengkap hasil compile TS.
 # COPY --from=builder /usr/src/app/generated ./dist/generated
 
+
+COPY --from=builder /usr/src/app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /usr/src/app/node_modules/@prisma ./node_modules/@prisma
+
 # 3. Copy Prisma Schema (untuk migrate deploy)
 COPY --from=builder /usr/src/app/prisma ./prisma
 
@@ -52,4 +56,4 @@ COPY .env ./
 
 EXPOSE 1001
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
