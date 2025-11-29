@@ -7,7 +7,7 @@ import {
   Catch,
   ExceptionFilter,
 } from '@nestjs/common';
-import { Prisma } from '../generated/prisma/client';
+import { Prisma } from '@prisma/client';
 
 @Catch(
   Prisma.PrismaClientKnownRequestError,

@@ -6,7 +6,7 @@ import {
   IsNumber,
   IsOptional,
 } from 'class-validator';
-import { Role } from 'generated/prisma/enums';
+import { Role } from '@prisma/client';
 import { SignUpDto } from 'src/domains/auth/dto/signup.dto';
 
 export class UpdateUserDto extends PartialType(SignUpDto) {

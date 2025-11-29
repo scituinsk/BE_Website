@@ -23,11 +23,15 @@ import {
   COOKIE_REFRESH_TOKEN_NAME,
 } from '../auth/auth.constants';
 import { ResponseBuilder } from 'src/utils/response-builder.util';
+import { Roles } from './decorators/roles.decorator';
+import { RolesGuard } from './guards/roles.guard';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  @UseGuards(JwtRefreshAuthGuard, RolesGuard)
+  @Roles('ADMIN')
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
   async signUp(@Body() signUpDto: SignUpDto) {

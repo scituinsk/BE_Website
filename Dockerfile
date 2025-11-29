@@ -42,7 +42,7 @@ COPY --from=builder /usr/src/app/dist ./dist
 # 2. FIX UTAMA: TIMPA folder generated di dalam dist
 # Kita ambil folder generated yang SEHAT dari builder, dan taruh di dalam dist
 # agar menggantikan file yang tidak lengkap hasil compile TS.
-COPY --from=builder /usr/src/app/generated ./dist/generated
+# COPY --from=builder /usr/src/app/generated ./dist/generated
 
 # 3. Copy Prisma Schema (untuk migrate deploy)
 COPY --from=builder /usr/src/app/prisma ./prisma

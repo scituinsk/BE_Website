@@ -1,6 +1,6 @@
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 
-import { ProjectStatus } from 'generated/prisma/enums';
+import { ProjectStatus } from '@prisma/client';
 
 export class UpdateBasicInfoDto {
   @IsOptional()
