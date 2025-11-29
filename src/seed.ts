@@ -9,12 +9,12 @@ async function bootstrap() {
   const appContext = await NestFactory.createApplicationContext(SeederModule);
   const logger = new Logger('Seeder');
 
-  if (process.env.NODE_ENV === 'production') {
-    logger.warn(
-      'Seeding tidak diizinkan di lingkungan produksi. Proses dihentikan.',
-    );
-    return;
-  }
+  // if (process.env.NODE_ENV === 'production') {
+  //   logger.warn(
+  //     'Seeding tidak diizinkan di lingkungan produksi. Proses dihentikan.',
+  //   );
+  //   return;
+  // }
 
   const seeder = appContext.get(SeederService);
 
