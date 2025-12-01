@@ -70,12 +70,9 @@ export class AuthService {
       ipAddress,
     );
 
-    return ResponseBuilder.success(
-      {
-        ...tokens,
-      },
-      'Login successful',
-    );
+    return {
+      ...tokens,
+    };
   }
 
   async refreshTokens(userId: number, refreshToken: string) {

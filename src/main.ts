@@ -26,7 +26,7 @@ async function bootstrap() {
   app.getHttpAdapter().getInstance().disable('etag');
 
   app.enableCors({
-    origin: ['http://localhost:3000'],
+    origin: process.env.CORS_ORIGINS?.split(',') ?? ['http://localhost:3000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -49,5 +49,7 @@ async function bootstrap() {
     `Application is running on: http://localhost:${port}`,
     'Bootstrap',
   );
+
+  console.log(process.env.CORS_ORIGINS?.split(','));
 }
 bootstrap();

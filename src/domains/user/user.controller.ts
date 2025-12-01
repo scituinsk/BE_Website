@@ -6,6 +6,7 @@ import {
   Param,
   ParseIntPipe,
   Patch,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 import { UserService } from './user.service';
@@ -14,6 +15,7 @@ import { ResponseBuilder } from '../../utils/response-builder.util';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { SignUpDto } from '../auth/dto/signup.dto';
 
 @Controller('users')
 export class UserController {
@@ -25,6 +27,13 @@ export class UserController {
   async getAllUsers() {
     const users = await this.userService.findAll();
     return ResponseBuilder.success(users);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Post('/')
+  async signUp(@Body() signUpDto: SignUpDto) {
+    return this.userService.create(signUpDto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

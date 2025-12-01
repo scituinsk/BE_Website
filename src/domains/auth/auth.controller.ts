@@ -1,5 +1,4 @@
 import {
-  Body,
   Controller,
   Get,
   HttpCode,
@@ -11,7 +10,6 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { SignUpDto } from './dto/signup.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtRefreshAuthGuard } from './guards/jwt-refresh-auth.guard';
@@ -23,20 +21,9 @@ import {
   COOKIE_REFRESH_TOKEN_NAME,
 } from '../auth/auth.constants';
 import { ResponseBuilder } from 'src/utils/response-builder.util';
-import { Roles } from './decorators/roles.decorator';
-import { RolesGuard } from './guards/roles.guard';
-
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
-
-  @UseGuards(JwtRefreshAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  @Post('signup')
-  @HttpCode(HttpStatus.CREATED)
-  async signUp(@Body() signUpDto: SignUpDto) {
-    return this.authService.signUp(signUpDto);
-  }
 
   @UseGuards(LocalAuthGuard)
   @Post('signin')
@@ -53,14 +40,14 @@ export class AuthController {
     const result = await this.authService.signIn(user, deviceInfo, ipAddress);
 
     // Set tokens in cookies
-    res.cookie(COOKIE_ACCESS_TOKEN_NAME, result.data.accessToken, {
+    res.cookie(COOKIE_ACCESS_TOKEN_NAME, result.accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: COOKIE_ACCESS_TOKEN_MAX_AGE,
     });
 
-    res.cookie(COOKIE_REFRESH_TOKEN_NAME, result.data.refreshToken, {
+    res.cookie(COOKIE_REFRESH_TOKEN_NAME, result.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
