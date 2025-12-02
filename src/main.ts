@@ -26,7 +26,10 @@ async function bootstrap() {
   app.getHttpAdapter().getInstance().disable('etag');
 
   app.enableCors({
-    origin: process.env.CORS_ORIGINS?.split(',') ?? ['http://localhost:3000'],
+    origin: process.env.CORS_ORIGINS?.split(',') ?? [
+      'http://localhost:3000',
+      'https://scituinsk.com',
+    ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
