@@ -8,6 +8,7 @@ use App\Policies\ProjectPolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,6 +25,19 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if (!config('auth.super_admin_email')) {
+            throw new RuntimeException(
+                'SUPER_ADMIN_EMAIL is not set in environment'
+            );
+        }
+
+        if (!config('auth.super_admin_password')) {
+            throw new RuntimeException(
+                'SUPER_ADMIN_PASSWORD is not set in environment'
+            );
+        }
+
+
         /**
          * Register Policies
          */

@@ -15,15 +15,15 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        $email = 'atmin@scituinsk.com';
+        $email = config('auth.super_admin_email');
         $avatarHash = md5(strtolower(trim($email)));
         $avatarUrl = "https://www.gravatar.com/avatar/{$avatarHash}?d=retro&s=300";
 
         $initialUsers = [
             [
-                'name' => 'Atmin SCIT',
+                'name' => config('auth.super_admin_name', 'Super Admin'),
                 'email' => $email,
-                'password' => Hash::make('12345678'),
+                'password' => Hash::make(config('auth.super_admin_password')),
                 'avatar' => $avatarUrl,
                 'role' => 'SUPER_ADMIN',
             ],
