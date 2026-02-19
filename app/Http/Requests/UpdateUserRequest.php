@@ -28,10 +28,21 @@ class UpdateUserRequest extends FormRequest
                 'integer',
                 'exists:users,id',
             ],
-            'role' => [
-                'required',
+            'name' => [
+                'sometimes',
                 'string',
-                Rule::in(['ADMIN', 'SUPER_ADMIN']),
+                'max:255',
+            ],
+            'email' => [
+                'sometimes',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($this->input('userId')),
+            ],
+            'password' => [
+                'sometimes',
+                'string',
+                'min:8',
             ],
         ];
     }

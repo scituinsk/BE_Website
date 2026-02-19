@@ -36,15 +36,20 @@ return [
 
     'resources' => [
         'projects' => [
-            'per_page' => 20,
+            'per_page' => 10,
             'sort_by' => 'created_at',
             'sort_direction' => 'desc',
         ],
 
         'technologies' => [
-            'per_page' => 20,
+            'per_page' => 10,
             'sort_by' => 'name',
             'sort_direction' => 'asc',
         ],
+        'activities' => [
+            'per_page' => 10,
+            'sort_by' => 'created_at',
+            'sort_direction' => 'desc',
+        ]
     ],
 ];

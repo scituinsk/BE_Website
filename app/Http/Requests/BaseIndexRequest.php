@@ -4,37 +4,29 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class GalleryIndexRequest extends FormRequest
+abstract class BaseIndexRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
+    abstract protected function sortableColumns(): array;
+
     public function rules(): array
     {
+        $sortable = implode(',', $this->sortableColumns());
+
         return [
             'search'   => ['nullable', 'string', 'max:100'],
 
             'sort_by'  => [
                 'nullable',
                 'string',
-                'in:title,launch_year,created_at'
+                'in:' . $sortable
             ],
 
-            'sort_dir' => [
-                'nullable',
-                'string',
-                'in:asc,desc'
-            ],
+            'sort_dir' => ['nullable', 'string', 'in:asc,desc'],
 
             'page'     => ['nullable', 'integer', 'min:' . config('pagination.min_per_page')],
             'per_page' => ['nullable', 'integer', 'min:' . config('pagination.min_per_page'), 'max:' . config('pagination.max_per_page')],
