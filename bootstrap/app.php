@@ -6,6 +6,7 @@ use App\Http\Middleware\JwtFromCookieOrHeader;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -42,11 +43,6 @@ return Application::configure(basePath: dirname(__DIR__))
             return response()->json([
                 'statusCode' => 403,
                 'message' => 'This action is unauthorized.',
-                'debug' => config('app.debug') ? [
-                    'exception' => $e->getMessage(),
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                ] : null,
             ], 403);
         });
     })->create();

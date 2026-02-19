@@ -4,7 +4,6 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -24,7 +23,6 @@ class JwtFromCookieOrHeader
         $authHeader = $request->header('Authorization', '');
         if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
             $token = $matches[1];
-            Log::info('Token found in header');
         }
 
         // If no token in header, try to get from cookie (Priority 2)
@@ -32,15 +30,10 @@ class JwtFromCookieOrHeader
             $token = $request->cookie('accessToken')
                 ?? $request->cookies->get('accessToken')
                 ?? $_COOKIE['accessToken'] ?? null;
-
-            if ($token) {
-                Log::info('Token found in cookie');
-            }
         }
 
         // If no token found, continue without authentication
         if (!$token) {
-            Log::info('No token found - continuing without authentication');
             return $next($request);
         }
 

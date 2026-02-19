@@ -85,14 +85,6 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
-     * Get the galleries uploaded by the user.
-     */
-    public function galleries()
-    {
-        return $this->hasMany(Gallery::class, 'uploaded_by');
-    }
-
-    /**
      * Get the identifier that will be stored in the subject claim of the JWT.
      *
      * @return mixed
@@ -110,5 +102,38 @@ class User extends Authenticatable implements JWTSubject
     public function getJWTCustomClaims()
     {
         return [];
+    }
+
+    /**
+     * Search scope - Database agnostic
+     */
+    public function scopeSearch($query, ?string $search)
+    {
+        if (!$search) {
+            return $query;
+        }
+
+        $searchTerm = '%' . strtolower($search) . '%';
+
+        return $query->where(function ($q) use ($searchTerm) {
+            $q->whereRaw('LOWER(name) LIKE ?', [$searchTerm])
+                ->orWhereRaw('LOWER(email) LIKE ?', [$searchTerm]);
+        });
+    }
+
+    /**
+     * Sorting scope (whitelisted)
+     */
+    public function scopeSort($query, ?string $sortBy, ?string $direction)
+    {
+        $allowedSorts = ['created_at'];
+
+        if (!in_array($sortBy, $allowedSorts)) {
+            return $query;
+        }
+
+        $direction = strtolower($direction) === 'desc' ? 'desc' : 'asc';
+
+        return $query->orderBy($sortBy, $direction);
     }
 }

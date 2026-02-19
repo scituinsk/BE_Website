@@ -54,12 +54,16 @@ class UserPolicy
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, User $model): bool
+    public function delete(User $actor, User $target): bool
     {
         /**
-         * Only super admin can delete users (including themselves and other admins)
+         * Only super admin can delete users and cannot delete other super admins
          */
-        return $user->isSuperAdmin();
+        if ($target->isSuperAdmin()) {
+            return false;
+        }
+
+        return $actor->isSuperAdmin();
     }
 
     /**

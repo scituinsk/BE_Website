@@ -2,8 +2,7 @@
 
 namespace App\Http\Requests;
 
-
-class ProjectIndexRequest extends BaseIndexRequest
+class UserIndexRequest extends BaseIndexRequest
 {
     public function authorize(): bool
     {

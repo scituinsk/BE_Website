@@ -10,59 +10,69 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
+use App\Http\Requests\UserIndexRequest;
+
 class UserController extends Controller
 {
     use HttpResponses;
 
-    public function getUserInfo(Request $request)
+    public function index(UserIndexRequest $request)
     {
         $this->authorize('viewAny', User::class);
 
-        $users = User::paginate(10);
-        return $this->successWithPagination(UserResource::collection($users->items()), $users, "Users retrieved successfully");
+        $users = User::query()
+            ->search($request->search)
+            ->sort($request->sort_by, $request->sort_dir)
+            ->paginate($request->per_page)
+            ->withQueryString();
+        return $this->successWithPagination(UserResource::collection($users), $users, "Users retrieved successfully");
     }
 
-    public function updateUserInfo(UpdateUserRequest $request)
+    public function update(UpdateUserRequest $request)
     {
         $validated = $request->validated();
 
         $user = User::find($validated['userId']);
+
         if (!$user) {
             return $this->error(null, 'User not found', 404);
         }
 
         $this->authorize('update', $user);
 
-        $user->role = $validated['role'];
+        $user->name = $validated['name'] ?? $user->name;
+        $user->email = $validated['email'] ?? $user->email;
+
+        if (isset($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
+        }
+
         $user->save();
 
         return $this->success(new UserResource($user), 'User updated successfully');
     }
 
-    public function createUser(CreateUserRequest $request)
+    public function store(CreateUserRequest $request)
     {
         $this->authorize('create', User::class);
 
         $validated = $request->validated();
 
-        $user = User::firstOrCreate(
-            ['email' => $validated['email']],
-            [
-                'name'     => $validated['name'],
-                'email' => $validated['email'],
-                'password' => Hash::make($validated['password']),
-                'role'     => 'ADMIN',
-            ]
-        );
+        if (User::where('email', $validated['email'])->exists()) {
+            return $this->error('Email already exists', 422);
+        }
 
-        $user->update([
+        $user = User::create([
             'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'role' => 'ADMIN',
         ]);
 
         return $this->success(new UserResource($user), 'User created successfully', 201);
     }
 
-    public function deleteUser(Request $request, $userId)
+    public function destroy(Request $request, $userId)
     {
         $user = User::whereKey($userId)->first();
 

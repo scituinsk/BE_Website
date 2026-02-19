@@ -4,30 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Gallery extends Model
+class Activity extends Model
 {
     protected $fillable = [
-        'title',
+        'name',
         'description',
-        'path',
-        'visibility',
-        'width',
-        'height',
-        'mime_type',
-        'size',
-        'original_filename',
-        'aspect_ratio',
-        'uploaded_by',
     ];
 
-    public function uploader()
+    public function images()
     {
-        return $this->belongsTo(User::class, 'uploaded_by');
+        return $this->hasMany(ActivityImage::class);
     }
 
-
     /**
-     * Search scope
+     * Search scope - Database agnostic
      */
     public function scopeSearch($query, ?string $search)
     {
@@ -38,7 +28,7 @@ class Gallery extends Model
         $searchTerm = '%' . strtolower($search) . '%';
 
         return $query->where(function ($q) use ($searchTerm) {
-            $q->whereRaw('LOWER(title) LIKE ?', [$searchTerm])
+            $q->whereRaw('LOWER(name) LIKE ?', [$searchTerm])
                 ->orWhereRaw('LOWER(description) LIKE ?', [$searchTerm]);
         });
     }
@@ -48,7 +38,7 @@ class Gallery extends Model
      */
     public function scopeSort($query, ?string $sortBy, ?string $direction)
     {
-        $allowedSorts = ['title', 'created_at'];
+        $allowedSorts = ['created_at'];
 
         if (!in_array($sortBy, $allowedSorts)) {
             return $query;

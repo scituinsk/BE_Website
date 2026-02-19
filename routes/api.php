@@ -1,8 +1,8 @@
 <?php
 
+use App\Http\Controllers\ActivityAdminController;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\GalleryAdminController;
-use App\Http\Controllers\GalleryController;
+use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\ProjectAdminController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\UserController;
@@ -30,14 +30,14 @@ Route::group([
 });
 
 Route::group([
-    'prefix' => 'users',
+    'prefix' => 'admin/users',
     'middleware' => ['jwt.extract', 'jwt.required'],
     'controller' => UserController::class,
 ], function () {
-    Route::get('/', 'getUserInfo');
-    Route::patch('/', 'updateUserInfo');
-    Route::post('/', 'createUser');
-    Route::delete('/{userId}', 'deleteUser')->where('userId', '[0-9]+');
+    Route::get('/', 'index');
+    Route::patch('/', 'update');
+    Route::post('/', 'store');
+    Route::delete('/{userId}', 'destroy')->where('userId', '[0-9]+');
 });
 
 Route::group([
@@ -48,9 +48,9 @@ Route::group([
 });
 
 Route::group([
-    'prefix' => 'galleries',
+    'prefix' => 'activities',
 ], function () {
-    Route::get('/', GalleryController::class);
+    Route::get('/', ActivityController::class);
 });
 
 Route::prefix('admin/projects')
@@ -81,12 +81,15 @@ Route::prefix('admin/projects')
     });
 
 Route::group([
-    'prefix' => 'admin/galleries',
+    'prefix' => 'admin/activities',
     'middleware' => ['jwt.extract', 'jwt.required'],
 ], function () {
-    Route::get('/', [GalleryAdminController::class, 'index']);
-    Route::post('/', [GalleryAdminController::class, 'store']);
-    Route::delete('/{galleryId}', [GalleryAdminController::class, 'destroy'])->where('galleryId', '[0-9]+');
+    Route::get('/', [ActivityAdminController::class, 'index']);
+    Route::get('/{activityId}', [ActivityAdminController::class, 'show'])->where('activityId', '[0-9]+');
+    Route::post('/', [ActivityAdminController::class, 'store']);
+    Route::post('/{activityId}/images/upload', [ActivityAdminController::class, 'uploadImage'])->where('activityId', '[0-9]+');
+    Route::delete('/{activityId}', [ActivityAdminController::class, 'destroy'])->where('activityId', '[0-9]+');
+    Route::delete('/{activityId}/images/{imageId}', [ActivityAdminController::class, 'destroyImage'])->where(['activityId' => '[0-9]+', 'imageId' => '[0-9]+']);
 });
 
 Route::group([
